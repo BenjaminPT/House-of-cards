@@ -1,0 +1,90 @@
+{
+  "name": "house-of-cards",
+  "productName": "House of Cards",
+  "version": "1.0.0",
+  "description": "Минималистичный лаунчер карточных игр: покер, 21, пасьянс, сиквенс и рулетка. PWA + десктоп, онлайн с друзьями.",
+  "main": "electron/main.cjs",
+  "homepage": "https://github.com/BenjaminPT/house-of-cards",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BenjaminPT/house-of-cards.git"
+  },
+  "author": "BenjaminPT",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "serve": "node scripts/serve.mjs",
+    "test": "node tests/blackjack.test.mjs && node tests/poker.test.mjs && node tests/sequence.test.mjs && node tests/roulette-solitaire.test.mjs",
+    "vendor": "node scripts/vendor.mjs",
+    "assets": "node scripts/gen-assets.mjs",
+    "postinstall": "node scripts/vendor.mjs",
+    "dist:win": "npm run vendor && electron-builder --win --publish never",
+    "dist:mac": "npm run vendor && electron-builder --mac --publish never",
+    "dist": "npm run vendor && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "peerjs": "1.5.4"
+  },
+  "build": {
+    "appId": "com.benjaminpt.houseofcards",
+    "productName": "House of Cards",
+    "copyright": "MIT © BenjaminPT",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "manifest.webmanifest",
+      "asset-manifest.json",
+      "css/**/*",
+      "js/**/*",
+      "icons/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "House of Cards",
+      "artifactName": "House-of-Cards-Setup-win-x64.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.games",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "House of Cards",
+      "artifactName": "House-of-Cards-mac-${arch}.${ext}"
+    }
+  },
+  "type": "module"
+}

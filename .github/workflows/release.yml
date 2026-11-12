@@ -1,0 +1,52 @@
+name: Build installers
+# Собирает установщики для Windows (.exe) и macOS (.dmg) и публикует их в Releases.
+# Запуск: пуш тега v* (например, v1.0.1) или вручную во вкладке Actions.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+            name: windows
+          - os: macos-latest
+            script: dist:mac
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: node scripts/gen-assets.mjs
+      - run: npm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: error
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+      - name: Опубликовать релиз
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'latest-build' }}
+          name: House of Cards ${{ github.ref_type == 'tag' && github.ref_name || '(ручная сборка)' }}
+          generate_release_notes: true
+          make_latest: true
+          files: artifacts/*
