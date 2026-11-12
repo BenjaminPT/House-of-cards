@@ -76,7 +76,10 @@ export class HostSession {
   _tick(fn) {
     if (this.closed) return;
     const err = fn();
-    if (!err) this._after();
+    if (!err) { this.errs = 0; this._after(); return; }
+    // ошибка бота/таймера не должна подвешивать партию: пробуем ещё несколько раз
+    this.errs = (this.errs || 0) + 1;
+    if (this.errs < 4) this._after();
   }
   /** Игрок вышел: бот занимает место. */
   replaceWithBot(pid) {
@@ -99,5 +102,6 @@ export class LocalHandle {
   }
   onView(f) { this.cbs.add(f); if (this.view) f(this.view); return () => this.cbs.delete(f); }
   act(a) { return this.host.dispatch(this.me, a); }
+  onReject() { return () => {}; }
   leave() { this.host.close(); }
 }

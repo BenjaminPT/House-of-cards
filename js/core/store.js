@@ -8,7 +8,9 @@ export const DEFAULTS = {
   sound: true,
   volume: 0.6,
   motion: 'full', // full | reduced
-  theme: 'dark', // dark | light | auto
+  skin: 'offsuit-night', // тема оформления
+  tableTone: 'skin', // skin | graphite | felt | navy | wine | sand
+  assist: true, // подсказки: подсветка ходов, название комбинации
   table: 'graphite',
   fourColor: false,
   back: { design: 'diamonds', c1: '#1d2f4a', c2: '#d8b36a', emblem: 'spade', text: '', image: null, frame: 'thin', scale: 1 },

@@ -7,6 +7,7 @@
  "js/core/net.js",
  "js/core/session.js",
  "js/core/sfx.js",
+ "js/core/stats.js",
  "js/core/store.js",
  "js/core/ui.js",
  "js/engines/blackjack.js",

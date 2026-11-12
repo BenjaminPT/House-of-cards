@@ -4,6 +4,7 @@ import { h, btn, fmt, hotkeys, avatar } from '../core/ui.js';
 import { Stage } from '../core/cards.js';
 import { countTo, floatText, pop, shake } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
+import * as stats from '../core/stats.js';
 import { backURL } from '../core/cards.js';
 
 const CHIPS = [10, 50, 100, 500];
@@ -100,6 +101,10 @@ export function mount(root, handle, ctx) {
     }
     if (msg.textContent !== text) { msg.textContent = text; if (text) pop(msg, 0.96); }
     // эффекты
+    if (prev && prev.phase !== 'done' && v.phase === 'done' && mine && mine.hands.length) {
+      const d = mine.delta;
+      stats.rec('blackjack', { play: 1, win: d > 0 ? 1 : 0, draw: d === 0 ? 1 : 0, points: d, net: d }, { add: { blackjacks: mine.hands.filter((x) => x.result === 'blackjack').length }, max: { bestWin: Math.max(0, d) } });
+    }
     if (prev && prev.phase !== 'done' && v.phase === 'done' && mine) {
       const r = seatRefs.get(me);
       if (mine.delta > 0) { sfx.win(); floatText(r.el, '+' + fmt(mine.delta), 'good'); } else if (mine.delta < 0) { sfx.lose(); floatText(r.el, '−' + fmt(-mine.delta), 'bad'); }

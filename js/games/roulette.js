@@ -3,6 +3,7 @@ import * as ro from '../engines/roulette.js';
 import { h, btn, fmt, hotkeys, avatar } from '../core/ui.js';
 import { anim, countTo, floatText, pop, reduced, sleep } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
+import * as stats from '../core/stats.js';
 
 const STEP = 360 / 37;
 const CHIP_VALUES = [5, 10, 25, 100, 500];
@@ -177,7 +178,7 @@ export function mount(root, handle, ctx) {
       if (prev && prev.phase === 'result') { const r = wheel.querySelector('.wheel-result'); r.textContent = ''; r.className = 'wheel-result'; }
     } else if (v.phase === 'result') {
       const d = m.delta; banner.textContent = `Выпало ${v.result.n} · ${v.result.color === 'red' ? 'красное' : v.result.color === 'black' ? 'чёрное' : 'зеро'}` + (staked ? (d > 0 ? ` · +${fmt(d)}` : d < 0 ? ` · −${fmt(-d)}` : '') : '');
-      if (prev && prev.phase !== 'result' && staked) { if (d > 0) { sfx.win(); floatText(myChips, '+' + fmt(d), 'good'); } else if (d < 0) sfx.lose(); }
+      if (prev && prev.phase !== 'result' && staked) { stats.rec('roulette', { play: 1, win: d > 0 ? 1 : 0, draw: d === 0 ? 1 : 0, points: d, net: d }, { max: { bestWin: Math.max(0, d) } }); if (d > 0) { sfx.win(); floatText(myChips, '+' + fmt(d), 'good'); } else if (d < 0) sfx.lose(); }
     }
     renderControls(v, m);
     prev = v;

@@ -1,5 +1,6 @@
 // House of Cards — оболочка: лаунчер, настройки, рубашки, онлайн-лобби, игровой экран.
 import * as store from './core/store.js';
+import * as stats from './core/stats.js';
 import { h, btn, sheet, toast, fmt } from './core/ui.js';
 import { applyBackVar, backURL, backSVG, makeCard, flipCard, PRESETS, BACK_DESIGNS, BACK_LABELS, EMBLEMS, FRAMES, fileToDataURL } from './core/cards.js';
 import { sfx } from './core/sfx.js';
@@ -47,12 +48,26 @@ export const modOf = (id) => GAMES[id].mod;
 const ORDER = ['poker', 'blackjack', 'solitaire', 'sequence', 'roulette'];
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
+/* ---------- оформления ---------- */
+export const SKINS = [
+  { id: 'offsuit-night', name: 'Night', bg: '#0e0f12', tbl: '#15171c', text: '#f1efe9', acc: '#f2c94c' },
+  { id: 'offsuit-day', name: 'Day', bg: '#f4f2ee', tbl: '#e9e6df', text: '#17181b', acc: '#f2c94c' },
+  { id: 'ink', name: 'Ink', bg: '#000000', tbl: '#000000', text: '#fafafa', acc: '#ffffff' },
+  { id: 'paper', name: 'Paper', bg: '#f1ebdd', tbl: '#e6dcc6', text: '#2a2218', acc: '#b5452a' },
+  { id: 'forest', name: 'Forest', bg: '#0b1410', tbl: '#123324', text: '#ecf3ee', acc: '#8fe3a8' },
+  { id: 'midnight', name: 'Midnight', bg: '#0a0e1a', tbl: '#121c3a', text: '#eaeefc', acc: '#7aa2ff' },
+  { id: 'dusk', name: 'Dusk', bg: '#140d12', tbl: '#301622', text: '#f6ecf1', acc: '#ff8fa3' },
+];
+const TONES = [['skin', 'Как в теме', null], ['graphite', 'Графит', '#1a1d23'], ['felt', 'Сукно', '#1b4332'], ['navy', 'Ночь', '#1a2a4a'], ['wine', 'Бордо', '#461a26'], ['sand', 'Песок', '#e4d9bf'], ['black', 'Чёрный', '#000']];
+
 /* ---------- применение настроек ---------- */
 function applySettings() {
   const s = store.get();
   const root = document.documentElement;
-  if (s.theme && s.theme !== 'auto') root.dataset.theme = s.theme; else delete root.dataset.theme;
-  root.dataset.table = s.table; root.dataset.four = s.fourColor ? '1' : '0';
+  const sk = SKINS.find((k) => k.id === s.skin) ? s.skin : 'offsuit-night';
+  root.dataset.skin = sk;
+  if (s.tableTone && s.tableTone !== 'skin') root.dataset.tone = s.tableTone; else delete root.dataset.tone;
+  root.dataset.four = s.fourColor ? '1' : '0';
   applyBackVar();
   const tc = document.querySelector('meta[name=theme-color]');
   if (tc) tc.content = getComputedStyle(root).getPropertyValue('--bg').trim() || '#0d0f12';
@@ -76,6 +91,7 @@ const ICON = {
   online: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>',
   cards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="11" height="15" rx="2" transform="rotate(-8 9 12)"/><rect x="9" y="4" width="11" height="15" rx="2" transform="rotate(8 14 11)"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>',
   mute: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
@@ -88,6 +104,7 @@ function renderTop() {
     h('div', { class: 'brand', html: ICON.logo + '<span>House of Cards</span>' }),
     (deferredInstall && !standalone() && !isDesktop) ? btn('Установить', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; renderTop(); }, 'sm ghost') : null,
     iconBtn('online', 'Играть онлайн', () => openOnline()),
+    iconBtn('chart', 'Статистика', () => openStats()),
     iconBtn('cards', 'Рубашки карт', () => openBacks()),
     iconBtn('gear', 'Настройки', () => openSettings()),
   ].filter(Boolean));
@@ -110,7 +127,8 @@ function renderHome() {
         return h('button', { class: 'tile', role: 'listitem', onclick: () => { sfx.unlock(); sfx.click(); openSetup(id); } },
           h('div', { class: 'art', html: g.art }),
           h('div', null, h('h3', null, m.name), h('p', null, m.desc),
-            h('div', { class: 'meta' }, h('span', { class: 'pill' }, m.min === m.max ? `${m.min} игрок` : `${m.min}–${m.max} игроков`), h('span', { class: 'pill' }, 'офлайн + онлайн'))));
+            h('div', { class: 'meta' }, h('span', { class: 'pill' }, m.min === m.max ? `${m.min} игрок` : `${m.min}–${m.max} игроков`), h('span', { class: 'pill' }, 'офлайн + онлайн'),
+              (() => { const pts = stats.get(id).points; return h('span', { class: 'pts' + (pts ? '' : ' zero') }, 'Очки ', h('span', { class: 'num' }, pts.toLocaleString('ru-RU'))); })())));
       })),
     h('footer', { class: 'foot' }, 'Версия 1.0 · ', h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'исходный код на GitHub'), ' · фишки виртуальные, играем ради удовольствия'),
   );
@@ -138,6 +156,7 @@ function openSetup(id) {
   };
   const body = h('div', null,
     h('p', { class: 'muted', style: { margin: '0 0 14px' } }, m.desc),
+    (() => { const st = stats.get(id); return h('div', { class: 'pts-line' }, 'Ваши очки в этом режиме', h('span', null, `${st.wins} из ${st.plays} побед`), h('b', null, st.points.toLocaleString('ru-RU'))); })(),
     g.solo ? null : h('div', { class: 'field' }, h('span', { class: 'lbl' }, g.botLabel), seg(range(g.bots[0], g.bots[1]).map((n) => [n, String(n)]), () => cfg.bots, (v) => { cfg.bots = v; })),
     g.draw ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Раздача из колоды'), seg([[1, 'По 1 карте'], [3, 'По 3 карты']], () => cfg.draw, (v) => { cfg.draw = v; })) : null,
     id === 'sequence' ? h('p', { class: 'note' }, 'При 4 игроках играют две команды (1+3 и 2+4).') : null,
@@ -211,6 +230,7 @@ async function closePlay(silent = false) {
   if (c.mode === 'local') c.handle.leave();
   else if (c.mode === 'host') { if (!silent && c.room) { c.room.endGame(); } }
   else if (c.mode === 'guest') { if (!silent) { c.guest.leave(); net.guest = null; } }
+  renderHome();
 }
 
 let exiting = false;
@@ -239,6 +259,53 @@ function showFinish({ title, sub }) {
   const f = box.querySelector('button.primary,button'); f && f.focus({ preventScroll: true });
 }
 
+/* ---------- выбор оформления ---------- */
+function skinPicker() {
+  const w = h('div', { class: 'skins', role: 'group', 'aria-label': 'Оформление' });
+  const upd = () => [...w.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === store.get().skin)));
+  SKINS.forEach((k) => w.append(h('button', { type: 'button', class: 'skin', 'data-v': k.id, style: { '--pv-bg': k.bg, '--pv-tbl': k.tbl, '--pv-text': k.text, '--pv-acc': k.acc },
+    onclick: () => { store.set({ skin: k.id }); applySettings(); upd(); sfx.click(); } }, h('div', { class: 'pv' }, h('b'), h('u'), h('i')), k.name)));
+  upd(); return w;
+}
+function tonePicker() {
+  const w = h('div', { class: 'tones', role: 'group', 'aria-label': 'Цвет стола' });
+  const upd = () => [...w.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (store.get().tableTone || 'skin'))));
+  TONES.forEach(([v, t, c]) => w.append(h('button', { type: 'button', class: 'tone' + (c ? '' : ' auto'), 'data-v': v, title: t, 'aria-label': t, style: c ? { '--tc': c } : {},
+    onclick: () => { store.set({ tableTone: v }); applySettings(); upd(); sfx.click(); } })));
+  upd(); return w;
+}
+
+/* ---------- статистика ---------- */
+const STAT_ROWS = {
+  poker: (g) => [['Раздач', g.plays], ['Выиграно', g.wins], ['Лучший банк', g.x.bestPot || 0], ['Турниров', g.x.tournaments || 0], ['Побед в турнирах', g.x.tournamentsWon || 0]],
+  blackjack: (g) => [['Раундов', g.plays], ['Побед', g.wins], ['Блэкджеков', g.x.blackjacks || 0], ['Баланс', (g.net > 0 ? '+' : '') + g.net], ['Лучший выигрыш', g.x.bestWin || 0]],
+  roulette: (g) => [['Спинов', g.plays], ['С выигрышем', g.wins], ['Лучший выигрыш', g.x.bestWin || 0], ['Баланс', (g.net > 0 ? '+' : '') + g.net]],
+  solitaire: (g) => [['Партий', g.plays], ['Собрано', g.wins], ['Лучшее время', g.x.bestTime ? stats.mmss(g.x.bestTime) : '—'], ['Лучший счёт', g.x.bestScore || 0], ['Серия побед', g.bestStreak]],
+  sequence: (g) => [['Партий', g.plays], ['Побед', g.wins], ['Секвенсов', g.x.sequences || 0], ['Серия побед', g.bestStreak]],
+};
+function openStats() {
+  const t = stats.totals();
+  const build = () => {
+    const all = stats.all(); const tt = stats.totals();
+    return h('div', null,
+      h('div', { class: 'st-hero' },
+        h('div', { class: 'st-kpi' }, h('b', null, String(tt.plays)), h('span', null, 'Игр сыграно')),
+        h('div', { class: 'st-kpi' }, h('b', null, tt.plays ? Math.round(tt.wins / tt.plays * 100) + '%' : '—'), h('span', null, 'Побед')),
+        h('div', { class: 'st-kpi' }, h('b', null, tt.points.toLocaleString('ru-RU')), h('span', null, 'Очков всего'))),
+      ORDER.map((id) => {
+        const g = stats.get(id);
+        return h('section', { class: 'st-g' },
+          h('header', null, h('h3', null, GAMES[id].mod.meta.name), h('small', null, `${g.points.toLocaleString('ru-RU')} очков`)),
+          g.plays ? h('div', { class: 'st-grid' }, STAT_ROWS[id](g).map(([k, v]) => h('div', null, h('b', null, String(v)), h('span', null, k)))) : h('p', { class: 'st-empty' }, 'Ещё не играли — сыграйте первую партию.'),
+          g.recent.length ? h('div', { class: 'dots', 'aria-label': 'Последние результаты' }, g.recent.map((r) => h('i', { class: r, title: r === 'w' ? 'победа' : r === 'd' ? 'ничья' : 'поражение' }))) : null);
+      }),
+      h('div', { class: 'row', style: { justifyContent: 'flex-end', marginTop: '14px' } }, t.plays ? btn('Сбросить статистику', async () => {
+        if (await confirmSheet('Сбросить статистику?', 'Очки и результаты по всем режимам будут удалены без возможности восстановления.', 'Сбросить', true)) { stats.reset(); sh.close(); openStats(); renderHome(); }
+      }, 'danger sm') : null));
+  };
+  const sh = sheet({ title: 'Статистика', content: build() });
+}
+
 /* ---------- настройки ---------- */
 function openSettings() {
   const s = store.get();
@@ -255,7 +322,6 @@ function openSettings() {
     i.addEventListener('change', () => { store.set({ [key]: i.checked }); after && after(); });
     return h('label', { class: 'switch', for: 'sw-' + key }, h('span', null, label), i);
   };
-  const tables = [['graphite', 'Графит'], ['felt', 'Сукно'], ['navy', 'Ночь'], ['wine', 'Бордо'], ['sand', 'Песок']];
   const vol = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: s.volume, 'aria-label': 'Громкость', style: { width: '100%', accentColor: 'var(--accent)' } });
   vol.addEventListener('input', () => store.set({ volume: +vol.value }));
   vol.addEventListener('change', () => sfx.chip());
@@ -263,8 +329,9 @@ function openSettings() {
     h('div', { class: 'field' }, h('label', { for: 'nm' }, 'Ваше имя за столом'), name),
     sw('Звуки', 'sound'), h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Громкость'), vol),
     h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Анимации'), seg([['full', 'Полные'], ['reduced', 'Сдержанные']], () => store.get().motion, (v) => store.set({ motion: v }))),
-    h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Тема интерфейса'), seg([['dark', 'Тёмная'], ['light', 'Светлая'], ['auto', 'Системная']], () => store.get().theme || 'dark', (v) => { store.set({ theme: v }); applySettings(); })),
-    h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Стол'), seg(tables, () => store.get().table, (v) => { store.set({ table: v }); applySettings(); })),
+    h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Оформление'), skinPicker()),
+    h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Цвет стола'), tonePicker()),
+    sw('Подсказки (комбинации, доступные ходы)', 'assist'),
     sw('Четыре цвета мастей (удобнее различать)', 'fourColor', applySettings),
     (!isDesktop && !standalone()) ? h('p', { class: 'note' }, deferredInstall ? 'Приложение можно установить кнопкой «Установить» вверху.' : 'iPhone/iPad: «Поделиться» → «На экран Домой». Chrome/Edge: значок установки в адресной строке.') : null,
     h('p', { class: 'note' }, `ID игрока: ${store.get().id}`));

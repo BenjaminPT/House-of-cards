@@ -4,14 +4,17 @@ import { h, btn, fmt, hotkeys, avatar } from '../core/ui.js';
 import { Stage, backURL } from '../core/cards.js';
 import { countTo, floatText, pop } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
+import * as store from '../core/store.js';
+import * as stats from '../core/stats.js';
 
+const assistOn = () => store.get().assist !== false;
 const ACT = { fold: 'Фолд', check: 'Чек', call: 'Колл', raise: 'Рейз', bet: 'Бет', allin: 'Олл-ин' };
 
 export function mount(root, handle, ctx) {
   const me = handle.me;
   let table, boardEl, potEl, infoEl, ctrl, deck, hint;
   const seats = new Map();
-  let built = 0, prev = null, prevCur = null, raiseTo = 0, raiseOpen = false, finished = false;
+  let built = 0, prev = null, prevCur = null, raiseTo = 0, raiseOpen = false, finished = false, startChips = 0, inHand = false;
 
   root.append(h('div', { class: 'pk' },
     (table = h('div', { class: 'ptable' },
@@ -103,15 +106,23 @@ export function mount(root, handle, ctx) {
     }
     if (cur && cur.id === me && prevCur !== me) { sfx.turn(); raiseOpen = false; }
     prevCur = cur ? cur.id : null;
-    // моя комбинация
+    // статистика: начало раздачи и итог
     const mine = myIdx >= 0 ? v.players[myIdx] : null;
-    if (mine && mine.hole.length === 2 && !mine.hole[0].h && v.board.length >= 3 && !mine.folded) {
+    if (mine && (!prev || prev.hands !== v.hands)) { startChips = mine.chips + mine.total; inHand = !mine.out; }
+    if (mine && v.phase === 'hand_over' && (!prev || prev.phase !== 'hand_over') && inHand) {
+      const d = mine.chips - startChips;
+      stats.rec('poker', { play: 1, win: d > 0 ? 1 : 0, draw: d === 0 ? 1 : 0, points: d, net: d }, { max: { bestPot: Math.max(0, d) } });
+      inHand = false;
+    }
+    // моя комбинация
+    if (assistOn() && mine && mine.hole.length === 2 && !mine.hole[0].h && v.board.length >= 3 && !mine.folded) {
       hint.textContent = pk.HAND_NAMES[pk.bestOf([...mine.hole, ...v.board])[0]];
     } else hint.textContent = '';
     renderControls(v, mine, cur);
     if (v.phase === 'game_over' && !finished) {
       finished = true;
       const w = v.players.find((p) => p.id === v.winner);
+      stats.rec('poker', { points: w && w.id === me ? 300 : 0 }, { add: { tournaments: 1, tournamentsWon: w && w.id === me ? 1 : 0 } });
       setTimeout(() => ctx.finish({ title: w && w.id === me ? 'Вы победили!' : `Победил ${w ? w.name : '—'}`, sub: w && w.id === me ? 'Все фишки за вашим столом.' : 'Турнир окончен.' }), 900);
     }
     prev = v;

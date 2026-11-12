@@ -22,12 +22,13 @@ export function init(players, opts = {}, rnd = Math.random) {
   const teams = n === 4 ? 2 : n;
   const st = {
     game: 'sequence', n, teams, need: teams === 2 ? 2 : 1, seq: 0, turn: 0, phase: 'play',
-    deck: [], discard: [], deadUsed: false, last: null, winner: null, seqs: [],
+    deck: [], discard: [], deadUsed: false, deadOwed: false, handSize: 0, last: null, winner: null, seqs: [],
     board: BOARD.map((row) => row.map((c) => (c === 'F' ? { corner: true, chip: -1 } : { chip: -1, locked: false }))),
-    players: players.map((p, i) => ({ id: p.id, name: p.name, bot: !!p.bot, team: teamOf(n, i), hand: [] })),
+    players: players.map((p, i) => ({ id: p.id, name: p.name, bot: !!p.bot, team: teamOf(n, i), hand: [], owes: 0 })),
   };
   st.deck = shuffle(newDeck(2), rnd).map((c) => ({ ...c, i: st.seq++ }));
   const hs = n === 2 ? 7 : 6;
+  st.handSize = hs;
   for (let k = 0; k < hs; k++) for (const p of st.players) p.hand.push(st.deck.pop());
   return st;
 }
@@ -95,6 +96,20 @@ function detect(st, team, r, c) {
 function endTurn(st) {
   st.turn = (st.turn + 1) % st.players.length;
   st.deadUsed = false;
+  st.deadOwed = false;
+}
+
+// Реальные правила: карту из колоды берут САМИ и до хода следующего игрока.
+// Не успел — право пропало, дальше играешь с меньшим числом карт. Боты берут сразу.
+function takeCard(st, p, rnd) {
+  const nc = drawCard(st, rnd);
+  if (nc) p.hand.push(nc);
+}
+function owe(st, p, rnd) {
+  if (p.bot) takeCard(st, p, rnd); else p.owes++;
+}
+function expireOthers(st, keep) {
+  for (const q of st.players) if (q !== keep) q.owes = 0;
 }
 
 export function legalMoves(st, pid) {
@@ -106,10 +121,20 @@ export function legalMoves(st, pid) {
 
 export function act(st, pid, a, rnd = Math.random) {
   if (st.phase !== 'play') return 'over';
+  if (a.t === 'draw') { // взять карту из колоды — можно в любой момент, пока право не истекло
+    const q = st.players.find((x) => x.id === pid);
+    if (!q) return 'no-player';
+    if (q.owes <= 0) return 'nothing-to-draw';
+    q.owes--;
+    takeCard(st, q, rnd);
+    if (st.players[st.turn] === q && q.owes === 0) st.deadOwed = false;
+    return null;
+  }
   const p = st.players[st.turn];
   if (p.id !== pid) return 'not-your-turn';
   if (a.t === 'pass') {
     if (legalMoves(st, pid).length || p.hand.some((c) => isDead(st.board, c) && !st.deadUsed)) return 'has-moves';
+    expireOthers(st, p);
     endTurn(st); return null;
   }
   const idx = p.hand.findIndex((c) => c.i === a.card);
@@ -118,11 +143,13 @@ export function act(st, pid, a, rnd = Math.random) {
   if (a.t === 'dead') {
     if (st.deadUsed || !isDead(st.board, card)) return 'not-dead';
     p.hand.splice(idx, 1); st.discard.push(card);
-    const nc = drawCard(st, rnd); if (nc) p.hand.push(nc);
+    owe(st, p, rnd);
+    if (!p.bot) st.deadOwed = true; // замену нужно взять до хода
     st.deadUsed = true;
     return null;
   }
   if (a.t !== 'play') return 'unknown';
+  if (st.deadOwed) return 'draw-first';
   if (!targets(st.board, p.team, card).some(([r, c]) => r === a.r && c === a.c)) return 'bad-target';
   const cell = st.board[a.r][a.c];
   let kind = 'place';
@@ -135,7 +162,8 @@ export function act(st, pid, a, rnd = Math.random) {
     const count = st.seqs.filter((s) => s.team === p.team).length;
     if (count >= st.need) { st.phase = 'over'; st.winner = p.team; }
   }
-  const nc = drawCard(st, rnd); if (nc) p.hand.push(nc);
+  expireOthers(st, p);
+  owe(st, p, rnd);
   if (st.phase === 'play') endTurn(st);
   return null;
 }
@@ -143,6 +171,8 @@ export function act(st, pid, a, rnd = Math.random) {
 export function pending(st) { return st.phase === 'play' ? [st.players[st.turn].id] : []; }
 export function auto() { return null; }
 export function timeoutAction(st, pid) {
+  const me = st.players.find((x) => x.id === pid);
+  if (st.deadOwed && me && me.owes > 0) return { t: 'draw' };
   const mv = legalMoves(st, pid);
   if (mv.length) return mv[Math.floor(Math.random() * mv.length)];
   const p = st.players.find((x) => x.id === pid);

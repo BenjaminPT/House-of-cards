@@ -210,6 +210,7 @@ export class Guest {
     if (m.t === 'lobby') { this.meta = m; this.emit('lobby', m); }
     else if (m.t === 'start') { this.backs = m.backs || {}; this.names = m.names || {}; this.emit('start', m); }
     else if (m.t === 'view') { this.view = m.v; this.cbs.forEach((f) => f(m.v)); }
+    else if (m.t === 'rej') this.emit('rej', m.err);
     else if (m.t === 'err') this.emit('error', m.msg);
     else if (m.t === 'kicked') this.emit('kicked');
     else if (m.t === 'closed') this.emit('closed');
@@ -217,6 +218,7 @@ export class Guest {
   // интерфейс как у LocalHandle
   onView(f) { this.cbs.add(f); if (this.view) f(this.view); return () => this.cbs.delete(f); }
   act(a) { try { this.conn.send({ t: 'act', a }); } catch { return 'net'; } return null; }
+  onReject(f) { return this.on('rej', f); }
   get online() { return true; }
   setMod(mod) { this.mod = mod; }
   leave() {

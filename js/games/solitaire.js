@@ -5,6 +5,7 @@ import { h, btn, fmt, hotkeys } from '../core/ui.js';
 import { Stage, makeCard } from '../core/cards.js';
 import { anim, countTo, pop, reduced, sleep } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
+import * as stats from '../core/stats.js';
 
 const VS = '︎';
 
@@ -82,7 +83,7 @@ export function mount(root, handle, ctx) {
     pileEls.stock.classList.toggle('empty', !board.stock.length);
     pileEls.stock.classList.toggle('recycle', !board.stock.length && board.waste.length > 0);
     countTo(stats.score, board.score, 400); stats.moves.textContent = board.moves;
-    if (board.moves > 0 && !t0) t0 = Date.now();
+    if (board.moves > 0 && !t0) { t0 = Date.now(); stats.rec('solitaire', { play: 1 }); }
     if (board.moves === 0) t0 = 0;
     // соперники
     others.replaceChildren(...v.others.map((o) => h('span', { class: 'oth' + (o.won ? ' won' : '') }, `${o.name}: `, h('b', null, `${o.found}/52`))));
@@ -92,6 +93,7 @@ export function mount(root, handle, ctx) {
       finished = true; sfx.win(); celebrate();
       const w = v.players.find((p) => p.id === v.winner);
       const mine = v.winner === me;
+      if (mine) { const secs = t0 ? Math.floor((Date.now() - t0) / 1000) : 0; stats.rec('solitaire', { win: 1, points: board.score }, { max: { bestScore: board.score }, min: secs ? { bestTime: secs } : {} }); }
       setTimeout(() => ctx.finish({ title: mine ? 'Пасьянс сошёлся!' : `${w ? w.name : 'Соперник'} собрал(а) быстрее`, sub: mine ? `${fmt(board.score)} очков · ${board.moves} ходов · ${stats.time.textContent}` : 'В этот раз не успели.' }), 1600);
     }
     if (!v.winner && !auto && so.canFinish(board) && board.found.some((f) => f.length < 13)) runAuto();
