@@ -21,6 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Отключить Spotlight (иначе hdiutil не размонтирует dmg)
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off || true
       - run: npm install
       - run: node scripts/gen-assets.mjs
       - run: npm run vendor
