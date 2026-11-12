@@ -12,7 +12,7 @@ import * as solitaire from './engines/solitaire.js';
 import * as sequence from './engines/sequence.js';
 import * as roulette from './engines/roulette.js';
 
-const REPO = 'https://github.com/BenjaminPT/house-of-cards';
+const REPO = 'https://github.com/BenjaminPT/House-of-cards';
 const BOT_NAMES = ['Аврора', 'Макс', 'Ирис', 'Лео', 'Нова', 'Тео'];
 const svg = (inner, vb = '0 0 120 80') => `<svg viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${inner}</svg>`;
 

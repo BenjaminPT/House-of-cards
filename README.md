@@ -5,7 +5,7 @@
 **Пять карточных игр за одним столом.** Покер · 21 · Пасьянс · Сиквенс · Рулетка  
 Минимализм, плавные анимации, свои рубашки карт и онлайн с настоящими людьми.
 
-[**▶ Играть в браузере**](https://benjaminpt.github.io/house-of-cards/) · [Windows (.exe)](https://github.com/BenjaminPT/house-of-cards/releases/latest/download/House-of-Cards-Setup-win-x64.exe) · [macOS Apple Silicon (.dmg)](https://github.com/BenjaminPT/house-of-cards/releases/latest/download/House-of-Cards-mac-arm64.dmg) · [macOS Intel (.dmg)](https://github.com/BenjaminPT/house-of-cards/releases/latest/download/House-of-Cards-mac-x64.dmg)
+[**▶ Играть в браузере**](https://benjaminpt.github.io/House-of-cards/) · [Windows (.exe)](https://github.com/BenjaminPT/House-of-cards/releases/latest/download/House-of-Cards-Setup-win-x64.exe) · [macOS Apple Silicon (.dmg)](https://github.com/BenjaminPT/House-of-cards/releases/latest/download/House-of-Cards-mac-arm64.dmg) · [macOS Intel (.dmg)](https://github.com/BenjaminPT/House-of-cards/releases/latest/download/House-of-Cards-mac-x64.dmg)
 
 </div>
 
@@ -13,7 +13,7 @@
 
 | Платформа | Как получить |
 | --- | --- |
-| **Любая (PWA)** | Откройте [сайт](https://benjaminpt.github.io/house-of-cards/) и нажмите «Установить» (Chrome/Edge/Android) или «Поделиться → На экран Домой» (iPhone/iPad). Работает офлайн. |
+| **Любая (PWA)** | Откройте [сайт](https://benjaminpt.github.io/House-of-cards/) и нажмите «Установить» (Chrome/Edge/Android) или «Поделиться → На экран Домой» (iPhone/iPad). Работает офлайн. |
 | **Windows** | Скачайте `House-of-Cards-Setup-win-x64.exe`, запустите установщик. |
 | **macOS** | Скачайте `.dmg` (Apple Silicon — `arm64`, Intel — `x64`), перетащите приложение в «Программы». |
 

@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "description": "Минималистичный лаунчер карточных игр: покер, 21, пасьянс, сиквенс и рулетка. PWA + десктоп, онлайн с друзьями.",
   "main": "electron/main.cjs",
-  "homepage": "https://github.com/BenjaminPT/house-of-cards",
+  "homepage": "https://github.com/BenjaminPT/House-of-cards",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BenjaminPT/house-of-cards.git"
+    "url": "git+https://github.com/BenjaminPT/House-of-cards.git"
   },
   "author": "BenjaminPT",
   "license": "MIT",
