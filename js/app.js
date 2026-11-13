@@ -297,27 +297,27 @@ function showFinish({ title, sub }) {
 const fmtDate = (t) => new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const KIND = { deposit: 'Пополнение', buyin: 'Вход за стол', cashout: 'Выход из-за стола', bonus: 'Бонус' };
 function openCashier(need) {
-  let amount = payments.AMOUNTS[2], method = 'virtual', tab = 'dep', busy = false;
+  let pack = payments.PACKS[2], tab = 'dep', busy = false;
   const root = h('div', { class: 'cashier' });
   const render = () => {
     const bal = wallet.balance();
-    const tabs = h('div', { class: 'seg', role: 'tablist' }, [['dep', 'Пополнить'], ['hist', 'История']].map(([v, t]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(tab === v), 'aria-pressed': String(tab === v), onclick: () => { tab = v; render(); } }, t)));
+    const tabs = h('div', { class: 'seg', role: 'tablist' }, [['dep', 'Купить монеты'], ['hist', 'История']].map(([v, t]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(tab === v), 'aria-pressed': String(tab === v), onclick: () => { tab = v; render(); } }, t)));
     let body;
     if (tab === 'dep') {
-      const input = h('input', { type: 'number', inputmode: 'numeric', min: payments.MIN_DEPOSIT, max: payments.MAX_DEPOSIT, step: 100, value: amount, 'aria-label': 'Своя сумма',
-        oninput: (e) => { amount = Math.floor(+e.target.value) || 0; go.disabled = !valid(); go.textContent = label(); grid.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === amount))); } });
-      const valid = () => amount >= payments.MIN_DEPOSIT && amount <= payments.MAX_DEPOSIT;
-      const label = () => (valid() ? `Пополнить на ${fmt(amount)}` : `Сумма от ${fmt(payments.MIN_DEPOSIT)}`);
-      const grid = h('div', { class: 'amounts', role: 'group', 'aria-label': 'Сумма пополнения' }, payments.AMOUNTS.map((a) => h('button', { type: 'button', 'data-v': a, 'aria-pressed': String(a === amount), onclick: () => { amount = a; input.value = a; input.dispatchEvent(new Event('input')); sfx.click(); } }, fmt(a))));
-      const methods = h('div', { class: 'methods', role: 'radiogroup', 'aria-label': 'Способ' }, payments.PROVIDERS.map((p) => h('button', { type: 'button', role: 'radio', 'aria-checked': String(method === p.id), 'aria-pressed': String(method === p.id), disabled: !p.enabled, onclick: () => { method = p.id; render(); } },
-        h('b', null, p.name), h('small', null, p.enabled ? p.hint : 'Скоро · ' + p.hint))));
-      const go = btn(label(), async () => {
-        if (busy || !valid()) return; busy = true; go.disabled = true;
-        try { await payments.provider(method).createInvoice(amount); sfx.chip(); toast(`Баланс пополнен на ${fmt(amount)}`); render(); }
-        catch (e) { toast('Не удалось пополнить'); } finally { busy = false; }
-      }, 'primary'); go.disabled = !valid();
-      body = h('div', null, h('span', { class: 'lbl' }, 'Сумма'), grid, h('label', { class: 'amt-in' }, h('span', null, 'Своя сумма'), input), h('span', { class: 'lbl' }, 'Способ'), methods, go,
-        h('p', { class: 'note' }, 'Сейчас это виртуальные монеты — игра идёт без реальных денег. Приём криптовалюты подключим позже.'));
+      const on = payments.PURCHASES_ENABLED;
+      const grid = h('div', { class: 'packs', role: 'radiogroup', 'aria-label': 'Пакет монет' }, payments.PACKS.map((p) => h('button', { type: 'button', role: 'radio', 'aria-checked': String(p.id === pack.id), 'aria-pressed': String(p.id === pack.id), onclick: () => { pack = p; sfx.click(); render(); } },
+        p.tag ? h('em', null, p.tag) : null, h('b', { class: 'num' }, fmt(p.coins)), h('small', null, on ? '' : 'цена скоро'))));
+      const go = btn(on ? `Купить ${fmt(pack.coins)}` : 'Оплата криптовалютой · скоро', async () => {
+        if (busy || !on) return; busy = true; go.disabled = true;
+        try { await payments.createInvoice(pack); } catch { toast('Не удалось создать счёт'); } finally { busy = false; go.disabled = !on; }
+      }, 'primary'); go.disabled = !on;
+      body = h('div', null,
+        on ? null : h('div', { class: 'lock' }, h('b', null, 'Покупка монет откроется позже'), h('span', null, `Сейчас доступен только стартовый капитал ${fmt(wallet.START_BALANCE)}. Пакеты ниже — предпросмотр.`)),
+        h('span', { class: 'lbl' }, 'Пакет'), grid,
+        h('span', { class: 'lbl' }, 'Способ оплаты'),
+        h('div', { class: 'methods' }, payments.PROVIDERS.map((p) => h('button', { type: 'button', role: 'radio', 'aria-checked': 'true', 'aria-pressed': 'true', disabled: !p.enabled }, h('b', null, p.name), h('small', null, p.enabled ? p.hint : 'Скоро · ' + p.hint)))),
+        go,
+        h('p', { class: 'note' }, 'Монеты внутриигровые. Если монеты закончились, Солитёр и Сиквенс остаются бесплатными.'));
     } else {
       const hist = wallet.history();
       body = hist.length ? h('ul', { class: 'hist' }, hist.map((r) => h('li', null, h('span', null, h('b', null, KIND[r.k] || r.k), h('small', null, `${fmtDate(r.t)}${r.note ? ' · ' + r.note : ''}`)), h('b', { class: 'num ' + (r.amount >= 0 ? 'pos' : 'neg') }, (r.amount >= 0 ? '+' : '−') + fmt(Math.abs(r.amount))))))
@@ -344,7 +344,7 @@ function buyInPicker(game, state, onChange) {
       h('div', { class: 'seg', role: 'group', 'aria-label': 'Сумма входа' }, presets.map((v) => h('button', { type: 'button', 'aria-pressed': String(v === state.buyIn), onclick: () => { state.buyIn = v; draw(); sfx.click(); } }, fmt(v)))),
       presets.length
         ? h('p', { class: 'note' }, `Баланс ${fmt(bal)} · минимальная фишка ${fmt(unit)}. Остаток стека вернётся на баланс при выходе.`)
-        : h('p', { class: 'note warn' }, `Для этого стола нужно минимум ${fmt(min)}. `, h('button', { type: 'button', class: 'link', onclick: () => openCashier(min) }, 'Пополнить баланс')));
+        : h('p', { class: 'note warn' }, `Для этого стола нужно минимум ${fmt(min)}, на балансе ${fmt(bal)}. `, h('button', { type: 'button', class: 'link', onclick: () => openCashier(min) }, 'Открыть кассу')));
     onChange && onChange(state.buyIn);
   };
   draw(); w.refresh = draw; return w;

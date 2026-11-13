@@ -557,3 +557,12 @@ input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; } input[type="co
   .r-ctrl { gap: 8px; }
 }
 .bal { border: 0; }
+
+.packs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 6px 0 12px; }
+.packs button { position: relative; min-height: 72px; border: 2px solid var(--line); background: transparent; color: var(--text); border-radius: 14px; display: grid; align-content: center; justify-items: center; gap: 2px; padding: 10px 4px; transition: transform 160ms var(--ease-out), border-color 160ms; }
+.packs button:active { transform: scale(.97); }
+.packs button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface2); }
+.packs b { font: 700 18px var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; } .packs small { color: var(--muted); font-size: 11px; }
+.packs em { position: absolute; top: -9px; font-style: normal; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+.lock { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--surface2); margin-bottom: 8px; font-size: 13px; color: var(--muted); } .lock b { color: var(--text); font-size: 15px; }
+.cashier .btn.primary:disabled { opacity: .55; }

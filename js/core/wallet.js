@@ -1,13 +1,15 @@
 // Кошелёк игрока: виртуальные монеты. Реальные деньги подключаются позже через payments.js.
 import * as store from './store.js';
 
-export const START_BALANCE = 5000;
+export const START_BALANCE = 2000; // единственный бесплатный капитал; дальше монеты покупаются за крипту (позже)
+const VERSION = 2;
 const MAX_HISTORY = 40;
 const subs = new Set();
 
 const state = () => {
   const s = store.get();
-  if (!s.wallet) store.set({ wallet: { balance: START_BALANCE, history: [{ t: Date.now(), k: 'bonus', amount: START_BALANCE, note: 'Стартовый баланс' }] } });
+  // нет кошелька или он из тестовой версии (v<2, когда пополнение было бесплатным) — выдаём стартовый капитал
+  if (!s.wallet || (s.wallet.v || 1) < VERSION) store.set({ wallet: { v: VERSION, balance: START_BALANCE, history: [{ t: Date.now(), k: 'bonus', amount: START_BALANCE, note: 'Стартовый капитал' }] } });
   return store.get().wallet;
 };
 const commit = (w) => { store.set({ wallet: w }); subs.forEach((f) => f(w.balance)); };
@@ -20,8 +22,8 @@ function push(w, k, amount, note) {
   w.history = [{ t: Date.now(), k, amount, note }, ...w.history].slice(0, MAX_HISTORY);
 }
 
-/** Пополнение. Возвращает новый баланс. */
-export function deposit(amount, note = 'Пополнение') {
+/** Зачисление ПОДТВЕРЖДЁННОЙ покупки (вызывать только после ответа сервера об оплате). */
+export function creditPurchase(amount, note = 'Покупка монет') {
   amount = Math.floor(+amount);
   if (!(amount > 0)) throw new Error('bad-amount');
   const w = { ...state() };
