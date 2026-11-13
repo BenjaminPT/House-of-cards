@@ -47,6 +47,7 @@ const isNatural = (h) => h.cards.length === 2 && !h.fromSplit && total(h.cards).
 function maybeStart(st) {
   const el = st.players.filter(eligible(st));
   if (!el.length || !el.every((p) => p.ready)) return;
+  if (st.players.some((p) => !eligible(st)(p))) return; // раунд ждёт, пока игрок без фишек докупит стек
   st.phase = 'deal';
   st.round++;
   st.holeUp = false;

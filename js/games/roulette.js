@@ -157,7 +157,7 @@ export function mount(root, handle, ctx) {
   }
 
   function renderHistory(v) {
-    history.replaceChildren(...v.history.map((n) => h('span', { class: 'hn ' + ro.colorOf(n) }, String(n))));
+    history.replaceChildren(...(v.phase === 'spin' ? v.history.slice(1) : v.history).map((n) => h('span', { class: 'hn ' + ro.colorOf(n) }, String(n))));
   }
 
   function render(v) {
