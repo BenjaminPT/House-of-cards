@@ -1,6 +1,10 @@
 // House of Cards — оболочка: лаунчер, настройки, рубашки, онлайн-лобби, игровой экран.
 import * as store from './core/store.js';
 import * as stats from './core/stats.js';
+import * as wallet from './core/wallet.js';
+import { splash } from './core/splash.js';
+import * as payments from './core/payments.js';
+import { BUYIN, unitFor, buyInPresets, botStacks } from './core/tables.js';
 import { h, btn, sheet, toast, fmt } from './core/ui.js';
 import { applyBackVar, backURL, backSVG, makeCard, flipCard, PRESETS, BACK_DESIGNS, BACK_LABELS, EMBLEMS, FRAMES, fileToDataURL } from './core/cards.js';
 import { sfx } from './core/sfx.js';
@@ -21,12 +25,12 @@ const GAMES = {
   poker: {
     mod: poker, ui: () => import('./games/poker.js'), bots: [1, 5, 3], botLabel: 'Соперников',
     art: svg('<rect x="14" y="14" width="40" height="56" rx="5" transform="rotate(-12 34 42)"/><rect x="40" y="10" width="40" height="56" rx="5" transform="rotate(8 60 38)"/><circle cx="98" cy="56" r="14"/><circle cx="98" cy="56" r="8" stroke-dasharray="3 3"/>'),
-    rules: ['Техасский холдем: у каждого две карты, пять общих на столе.', 'Блайнды растут каждые 6 раздач — турнир идёт до последнего со фишками.', 'Доступны фолд, чек, колл, рейз, олл-ин и сайд-поты. Выигрывает лучшая комбинация из пяти карт.'],
+    rules: ['Техасский холдем: у каждого две карты, пять общих на столе.', 'Казино берёт рейк 5% с банка (не больше 3 больших блайндов), только если был флоп. Блайнды растут каждые 6 раздач — турнир идёт до последнего со фишками.', 'Доступны фолд, чек, колл, рейз, олл-ин и сайд-поты. Выигрывает лучшая комбинация из пяти карт.'],
   },
   blackjack: {
     mod: blackjack, ui: () => import('./games/blackjack.js'), bots: [0, 4, 2], botLabel: 'Игроков за столом, кроме вас',
     art: svg('<rect x="22" y="12" width="40" height="56" rx="5" transform="rotate(-8 42 40)"/><rect x="52" y="12" width="40" height="56" rx="5" transform="rotate(7 72 40)"/><path d="M34 30l6-8 6 8M37 28h6" opacity=".6"/>'),
-    rules: ['Наберите больше дилера, но не больше 21. Туз — 1 или 11, картинки — 10.', 'Блэкджек платит 3:2. Дилер добирает до 17.', 'Можно удвоить ставку и разделить пару (до 4 рук). Бот-соседи играют по базовой стратегии.'],
+    rules: ['Наберите больше дилера, но не больше 21. Туз — 1 или 11, картинки — 10.', 'Блэкджек платит 3:2. Дилер берёт до 17, включая мягкие 17 (как в большинстве казино). Шесть колод, перемешивание после ~75% шу.', 'Можно удвоить ставку и разделить пару (до 4 рук). Бот-соседи играют по базовой стратегии.'],
   },
   solitaire: {
     mod: solitaire, ui: () => import('./games/solitaire.js'), bots: [0, 0, 0], draw: true, solo: true,
@@ -41,10 +45,11 @@ const GAMES = {
   roulette: {
     mod: roulette, ui: () => import('./games/roulette.js'), bots: [0, 5, 2], botLabel: 'Игроков за столом, кроме вас',
     art: svg('<circle cx="60" cy="40" r="30"/><circle cx="60" cy="40" r="19"/><circle cx="60" cy="40" r="4" fill="currentColor"/><path d="M60 10v9M60 61v9M30 40h9M81 40h9M39 19l6 6M75 55l6 6M81 19l-6 6M45 55l-6 6" opacity=".6"/><circle cx="84" cy="22" r="3" fill="currentColor"/>'),
-    rules: ['Европейская рулетка с одним зеро. Ставки на число, сплит, угол, стрит, дюжину, колонку, цвет, чёт/нечет.', 'Тапните по полю, чтобы поставить выбранную фишку. Ставки можно отменять и повторять.', 'Раунд начинается, когда все нажали «Крутить».'],
+    rules: ['Европейская рулетка с одним зеро: преимущество казино 2,7% на любую ставку. Лимит стола — 400 минимальных фишек за спин. Ставки на число, сплит, угол, стрит, дюжину, колонку, цвет, чёт/нечет.', 'Тапните по полю, чтобы поставить выбранную фишку. Ставки можно отменять и повторять.', 'Раунд начинается, когда все нажали «Крутить».'],
   },
 };
 export const modOf = (id) => GAMES[id].mod;
+const MONEY = new Set(['poker', 'blackjack', 'roulette']);
 const ORDER = ['poker', 'blackjack', 'solitaire', 'sequence', 'roulette'];
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
@@ -95,7 +100,7 @@ const ICON = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>',
   mute: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
-  logo: '<svg viewBox="0 0 32 32"><rect x="3" y="6" width="14" height="20" rx="2.5" transform="rotate(-10 10 16)" fill="#1d2f4a" stroke="#d8b36a" stroke-width="1.5"/><rect x="14" y="5" width="14" height="20" rx="2.5" transform="rotate(8 21 15)" fill="#f6f3ec"/><path d="M21 11.5c-1.6-2.2-4.2-.6-3 1.4l3 3.1 3-3.1c1.2-2-1.4-3.6-3-1.4z" fill="#d64545" transform="translate(0 2)"/></svg>',
+  logo: '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="17" y="9" width="30" height="46" rx="4.5" fill="none" stroke="currentColor" stroke-width="4"/><path d="M32 21.5 41 32 32 42.5 23 32Z" fill="var(--accent)"/></svg>',
 };
 const iconBtn = (name, label, fn) => h('button', { class: 'icon-btn', 'aria-label': label, title: label, html: ICON[name], onclick: fn });
 
@@ -103,6 +108,7 @@ function renderTop() {
   topbar.replaceChildren(...[
     h('div', { class: 'brand', html: ICON.logo + '<span>House of Cards</span>' }),
     (deferredInstall && !standalone() && !isDesktop) ? btn('Установить', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; renderTop(); }, 'sm ghost') : null,
+    h('button', { class: 'bal', type: 'button', 'aria-label': 'Касса и баланс', onclick: () => openCashier() }, h('i', { 'aria-hidden': 'true' }), h('b', { class: 'num' }, fmt(wallet.balance())), h('span', { 'aria-hidden': 'true' }, '+')),
     iconBtn('online', 'Играть онлайн', () => openOnline()),
     iconBtn('chart', 'Статистика', () => openStats()),
     iconBtn('cards', 'Рубашки карт', () => openBacks()),
@@ -133,7 +139,11 @@ function renderHome() {
     h('footer', { class: 'foot' }, 'Версия 1.0 · ', h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'исходный код на GitHub'), ' · фишки виртуальные, играем ради удовольствия'),
   );
 }
+// прерванная сессия (закрыли вкладку за столом): возвращаем вход
+{ const pend = store.get().pendingTable; if (pend && pend.amount > 0) { wallet.cashOut(pend.amount, 'Возврат: игра была прервана'); } if (pend) store.set({ pendingTable: null }); }
+wallet.onChange((b) => { document.querySelectorAll('.bal .num').forEach((n) => { n.textContent = fmt(b); }); });
 renderTop(); renderHome();
+splash();
 
 /* ---------- подтверждение ---------- */
 function confirmSheet(title, text, okLabel = 'Да', danger = false) {
@@ -147,24 +157,27 @@ function confirmSheet(title, text, okLabel = 'Да', danger = false) {
 /* ---------- настройка партии ---------- */
 function openSetup(id) {
   const g = GAMES[id], m = g.mod.meta;
-  const cfg = { bots: g.bots[2], draw: 1 };
+  const cfg = { bots: g.bots[2], draw: 1, buyIn: 0 };
   const seg = (labels, get, set) => {
     const wrap = h('div', { class: 'seg', role: 'group' });
     const upd = () => [...wrap.children].forEach((b, i) => b.setAttribute('aria-pressed', String(labels[i][0] === get())));
     labels.forEach(([v, t]) => wrap.append(h('button', { type: 'button', onclick: () => { set(v); upd(); sfx.click(); } }, t)));
     upd(); return wrap;
   };
+  let go0 = null, go1 = null;
   const body = h('div', null,
     h('p', { class: 'muted', style: { margin: '0 0 14px' } }, m.desc),
     (() => { const st = stats.get(id); return h('div', { class: 'pts-line' }, 'Ваши очки в этом режиме', h('span', null, `${st.wins} из ${st.plays} побед`), h('b', null, st.points.toLocaleString('ru-RU'))); })(),
     g.solo ? null : h('div', { class: 'field' }, h('span', { class: 'lbl' }, g.botLabel), seg(range(g.bots[0], g.bots[1]).map((n) => [n, String(n)]), () => cfg.bots, (v) => { cfg.bots = v; })),
     g.draw ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Раздача из колоды'), seg([[1, 'По 1 карте'], [3, 'По 3 карты']], () => cfg.draw, (v) => { cfg.draw = v; })) : null,
+    MONEY.has(id) ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Вход за стол'), (() => { const bp = buyInPicker(id, cfg, (v) => { if (go0) { go0.disabled = !v; if (go1) go1.disabled = !v; } }); return bp; })()) : null,
     id === 'sequence' ? h('p', { class: 'note' }, 'При 4 игроках играют две команды (1+3 и 2+4).') : null,
     h('details', { class: 'rules' }, h('summary', null, 'Правила'), h('ul', null, g.rules.map((r) => h('li', null, r)))),
     h('div', { class: 'row', style: { marginTop: '18px' } },
-      btn(g.solo ? 'Играть' : 'Играть с ботами', () => { sh.close(); startLocal(id, cfg); }, 'primary'),
-      btn('Онлайн-комната', () => { sh.close(); openOnline(id, cfg); }, '')));
+      go0 = btn(g.solo ? 'Играть' : 'Играть с ботами', () => { if (startLocal(id, cfg)) sh.close(); }, 'primary'),
+      go1 = btn('Онлайн-комната', () => { sh.close(); openOnline(id, cfg); }, '')));
   const sh = sheet({ title: m.name, content: body });
+  if (MONEY.has(id)) { go0.disabled = !cfg.buyIn; go1.disabled = !cfg.buyIn; }
 }
 
 /* ---------- запуск локальной партии ---------- */
@@ -173,19 +186,29 @@ let current = null; // { id, handle, ui, el, mode, cfg, room }
 function startLocal(id, cfg) {
   const g = GAMES[id], s = store.get();
   const me = s.id;
+  const money = MONEY.has(id);
+  const opts = { draw: cfg.draw, seed: cfg.seed };
+  const wal = money ? { paid: 0, start: cfg.buyIn } : null;
+  if (money) {
+    if (!cfg.buyIn || !wallet.buyIn(cfg.buyIn, `Вход · ${g.mod.meta.name}`)) { openCashier(cfg.buyIn || BUYIN[id].min); return false; }
+    wal.paid = cfg.buyIn; opts.buyIn = cfg.buyIn; opts.unit = unitFor(id, cfg.buyIn);
+    store.set({ pendingTable: { amount: cfg.buyIn } });
+  }
   const players = [{ id: me, name: s.name, bot: false, back: s.back }];
   const nb = g.solo ? 0 : Math.max(g.bots[0], cfg.bots);
   const mm = g.mod.meta;
   const total = Math.min(mm.max, Math.max(mm.min, 1 + nb));
-  for (let i = 0; players.length < total; i++) players.push({ id: 'bot' + i, name: BOT_NAMES[i % BOT_NAMES.length], bot: true });
-  const host = new HostSession({ mod: g.mod, players, opts: { draw: cfg.draw, seed: cfg.seed }, online: false, myId: me });
+  const stacks = money ? botStacks(id, cfg.buyIn, total - 1) : [];
+  for (let i = 0; players.length < total; i++) players.push({ id: 'bot' + i, name: BOT_NAMES[i % BOT_NAMES.length], bot: true, chips: money ? stacks[i] : undefined });
+  const host = new HostSession({ mod: g.mod, players, opts, online: false, myId: me });
   const handle = new LocalHandle(host, me, false);
-  openPlay({ id, handle, mode: 'local', cfg, host });
+  openPlay({ id, handle, mode: 'local', cfg, host, wal });
   host.start();
+  return true;
 }
 
 /* ---------- игровой экран ---------- */
-async function openPlay({ id, handle, mode, cfg, host, room, guest }) {
+async function openPlay({ id, handle, mode, cfg, host, room, guest, wal }) {
   if (current) await closePlay(true);
   const g = GAMES[id];
   const area = h('div', { class: 'table-area' });
@@ -210,9 +233,16 @@ async function openPlay({ id, handle, mode, cfg, host, room, guest }) {
     finish: (info) => showFinish(info),
     exit: () => requestExit(true),
   };
+  if (wal) { // докупка стека списывается с баланса
+    const act0 = handle.act.bind(handle);
+    handle.act = (a) => {
+      if (a && a.t === 'rebuy') { if (!wallet.buyIn(wal.start, 'Докупка стека')) { toast('Недостаточно средств'); openCashier(wal.start); return 'no-funds'; } wal.paid += wal.start; store.set({ pendingTable: { amount: wal.paid } }); }
+      return act0(a);
+    };
+  }
   const mod = await g.ui();
   const ui = mod.mount(area, handle, ctx);
-  current = { id, handle, ui, el, mode, cfg, host, room, guest, timer, deadlineOff: null, overlay: null };
+  current = { id, handle, ui, el, mode, cfg, host, room, guest, wal, timer, deadlineOff: null, overlay: null };
   const tick = setInterval(() => {
     const d = handle.view && handle.view._deadline;
     timer.textContent = d ? String(Math.max(0, Math.ceil((d - Date.now()) / 1000))) : '';
@@ -224,6 +254,10 @@ async function closePlay(silent = false) {
   const c = current; if (!c) return;
   current = null;
   clearInterval(c.tick);
+  if (c.wal) { // возвращаем остаток стека на баланс
+    const v = c.handle.view; const me = v && v.players && v.players.find((p) => p.id === c.handle.me);
+    wallet.cashOut(me ? me.chips : 0, 'Выход из-за стола'); store.set({ pendingTable: null });
+  }
   try { c.ui.destroy(); } catch (e) { console.error(e); }
   c.el.remove();
   main.removeAttribute('aria-hidden');
@@ -257,6 +291,63 @@ function showFinish({ title, sub }) {
   current.overlay = box;
   current.el.querySelector('.table-area').append(box);
   const f = box.querySelector('button.primary,button'); f && f.focus({ preventScroll: true });
+}
+
+/* ---------- касса ---------- */
+const fmtDate = (t) => new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const KIND = { deposit: 'Пополнение', buyin: 'Вход за стол', cashout: 'Выход из-за стола', bonus: 'Бонус' };
+function openCashier(need) {
+  let amount = payments.AMOUNTS[2], method = 'virtual', tab = 'dep', busy = false;
+  const root = h('div', { class: 'cashier' });
+  const render = () => {
+    const bal = wallet.balance();
+    const tabs = h('div', { class: 'seg', role: 'tablist' }, [['dep', 'Пополнить'], ['hist', 'История']].map(([v, t]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(tab === v), 'aria-pressed': String(tab === v), onclick: () => { tab = v; render(); } }, t)));
+    let body;
+    if (tab === 'dep') {
+      const input = h('input', { type: 'number', inputmode: 'numeric', min: payments.MIN_DEPOSIT, max: payments.MAX_DEPOSIT, step: 100, value: amount, 'aria-label': 'Своя сумма',
+        oninput: (e) => { amount = Math.floor(+e.target.value) || 0; go.disabled = !valid(); go.textContent = label(); grid.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === amount))); } });
+      const valid = () => amount >= payments.MIN_DEPOSIT && amount <= payments.MAX_DEPOSIT;
+      const label = () => (valid() ? `Пополнить на ${fmt(amount)}` : `Сумма от ${fmt(payments.MIN_DEPOSIT)}`);
+      const grid = h('div', { class: 'amounts', role: 'group', 'aria-label': 'Сумма пополнения' }, payments.AMOUNTS.map((a) => h('button', { type: 'button', 'data-v': a, 'aria-pressed': String(a === amount), onclick: () => { amount = a; input.value = a; input.dispatchEvent(new Event('input')); sfx.click(); } }, fmt(a))));
+      const methods = h('div', { class: 'methods', role: 'radiogroup', 'aria-label': 'Способ' }, payments.PROVIDERS.map((p) => h('button', { type: 'button', role: 'radio', 'aria-checked': String(method === p.id), 'aria-pressed': String(method === p.id), disabled: !p.enabled, onclick: () => { method = p.id; render(); } },
+        h('b', null, p.name), h('small', null, p.enabled ? p.hint : 'Скоро · ' + p.hint))));
+      const go = btn(label(), async () => {
+        if (busy || !valid()) return; busy = true; go.disabled = true;
+        try { await payments.provider(method).createInvoice(amount); sfx.chip(); toast(`Баланс пополнен на ${fmt(amount)}`); render(); }
+        catch (e) { toast('Не удалось пополнить'); } finally { busy = false; }
+      }, 'primary'); go.disabled = !valid();
+      body = h('div', null, h('span', { class: 'lbl' }, 'Сумма'), grid, h('label', { class: 'amt-in' }, h('span', null, 'Своя сумма'), input), h('span', { class: 'lbl' }, 'Способ'), methods, go,
+        h('p', { class: 'note' }, 'Сейчас это виртуальные монеты — игра идёт без реальных денег. Приём криптовалюты подключим позже.'));
+    } else {
+      const hist = wallet.history();
+      body = hist.length ? h('ul', { class: 'hist' }, hist.map((r) => h('li', null, h('span', null, h('b', null, KIND[r.k] || r.k), h('small', null, `${fmtDate(r.t)}${r.note ? ' · ' + r.note : ''}`)), h('b', { class: 'num ' + (r.amount >= 0 ? 'pos' : 'neg') }, (r.amount >= 0 ? '+' : '−') + fmt(Math.abs(r.amount))))))
+        : h('p', { class: 'st-empty' }, 'Операций пока нет.');
+    }
+    root.replaceChildren(
+      h('div', { class: 'bal-big' }, h('small', null, 'Баланс'), h('b', { class: 'num' }, fmt(bal)), need ? h('em', null, `Для входа нужно ${fmt(need)}`) : null),
+      tabs, body);
+  };
+  render();
+  const off = wallet.onChange(() => { if (tab === 'hist') render(); else root.querySelector('.bal-big .num') && (root.querySelector('.bal-big .num').textContent = fmt(wallet.balance())); });
+  sheet({ title: 'Касса', content: root, onClose: off });
+}
+
+/* выбор суммы входа за стол */
+function buyInPicker(game, state, onChange) {
+  const w = h('div', { class: 'buyin' });
+  const draw = () => {
+    const bal = wallet.balance(), min = BUYIN[game].min;
+    const presets = buyInPresets(game, bal);
+    if (!presets.includes(state.buyIn)) state.buyIn = presets.length ? presets[Math.min(1, presets.length - 1)] : 0;
+    const unit = state.buyIn ? unitFor(game, state.buyIn) : 0;
+    w.replaceChildren(
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Сумма входа' }, presets.map((v) => h('button', { type: 'button', 'aria-pressed': String(v === state.buyIn), onclick: () => { state.buyIn = v; draw(); sfx.click(); } }, fmt(v)))),
+      presets.length
+        ? h('p', { class: 'note' }, `Баланс ${fmt(bal)} · минимальная фишка ${fmt(unit)}. Остаток стека вернётся на баланс при выходе.`)
+        : h('p', { class: 'note warn' }, `Для этого стола нужно минимум ${fmt(min)}. `, h('button', { type: 'button', class: 'link', onclick: () => openCashier(min) }, 'Пополнить баланс')));
+    onChange && onChange(state.buyIn);
+  };
+  draw(); w.refresh = draw; return w;
 }
 
 /* ---------- выбор оформления ---------- */
@@ -486,11 +577,17 @@ function openOnline(gameId, cfg) {
   setTimeout(() => code.focus(), 60);
 }
 
+function tableOpts(game) {
+  const o = { draw: net.draw };
+  if (MONEY.has(game)) { const bi = net.buyIn || buyInPresets(game, wallet.balance())[0] || 0; o.buyIn = bi; o.unit = bi ? unitFor(game, bi) : 0; }
+  return o;
+}
+
 async function createRoom() {
   const room = new Room((id) => GAMES[id].mod);
   await room.open();
   net.room = room; net.guest = null;
-  room.setGame(net.game, { draw: net.draw });
+  room.setGame(net.game, tableOpts(net.game));
   room.on('lobby', () => { if (net.sheet && !current) renderHostLobby(); });
   room.on('left', (pid, name) => toast(`${name} вышел — играет бот`));
   showHostLobby();
@@ -503,7 +600,7 @@ function renderHostLobby() {
   const g = GAMES[room.game], m = g.mod.meta;
   const humans = room.roster();
   const link = `${location.origin}${location.pathname}#/join/${room.code}`;
-  const gameSeg = h('div', { class: 'seg', role: 'group', style: { flexWrap: 'wrap' } }, ORDER.map((id) => h('button', { type: 'button', 'aria-pressed': String(room.game === id), onclick: () => { net.bots = 0; room.setGame(id, { draw: net.draw }); } }, GAMES[id].mod.meta.name)));
+  const gameSeg = h('div', { class: 'seg', role: 'group', style: { flexWrap: 'wrap' } }, ORDER.map((id) => h('button', { type: 'button', 'aria-pressed': String(room.game === id), onclick: () => { net.bots = 0; room.setGame(id, tableOpts(id)); } }, GAMES[id].mod.meta.name)));
   const maxBots = Math.max(0, m.max - humans.length);
   net.bots = Math.min(net.bots, maxBots);
   const botSeg = h('div', { class: 'seg', role: 'group' }, range(0, Math.min(maxBots, 5)).map((n) => h('button', { type: 'button', 'aria-pressed': String(net.bots === n), onclick: () => { net.bots = n; renderHostLobby(); } }, String(n))));
@@ -516,7 +613,8 @@ function renderHostLobby() {
       navigator.share ? btn('Поделиться', () => navigator.share({ title: 'House of Cards', text: `Присоединяйся к игре! Код: ${room.code}`, url: link }).catch(() => {}), 'sm ghost') : null),
     h('div', { class: 'roster' }, humans.map((p) => h('div', { class: 'roster-row' }, h('span', { class: 'avatar', style: { '--av': 'oklch(0.72 0.09 ' + ([...p.name].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 0)) + ')' } }, p.name.charAt(0).toUpperCase()), p.name, p.host ? h('span', { class: 'tag' }, 'хост') : h('button', { class: 'btn sm ghost', style: { marginLeft: 'auto' }, onclick: () => room.kick(p.id) }, 'Убрать')))),
     h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Игра'), gameSeg),
-    room.game === 'solitaire' ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Раздача'), h('div', { class: 'seg' }, [[1, 'По 1'], [3, 'По 3']].map(([v, t]) => h('button', { type: 'button', 'aria-pressed': String(net.draw === v), onclick: () => { net.draw = v; room.setGame(room.game, { draw: v }); } }, t)))) : null,
+    room.game === 'solitaire' ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Раздача'), h('div', { class: 'seg' }, [[1, 'По 1'], [3, 'По 3']].map(([v, t]) => h('button', { type: 'button', 'aria-pressed': String(net.draw === v), onclick: () => { net.draw = v; room.setGame(room.game, tableOpts(room.game)); } }, t)))) : null,
+    MONEY.has(room.game) ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Вход за стол (у каждого)'), buyInPicker(room.game, net, (v) => { if (v !== net.lastBuy) { net.lastBuy = v; room.setGame(room.game, tableOpts(room.game)); } })) : null,
     room.game !== 'solitaire' && maxBots > 0 ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Добавить ботов'), botSeg) : null,
     h('div', { class: 'row' }, btn(ok ? 'Начать игру' : `Нужно игроков: ${m.min}+`, () => { startHosted(); net.sheet && net.sheet.close(); }, 'primary', { disabled: !ok }), btn('Закрыть комнату', async () => { if (await confirmSheet('Закрыть комнату?', 'Все игроки будут отключены.', 'Закрыть', true)) { net.sheet && net.sheet.close(); } }, 'ghost')),
     h('p', { class: 'note', style: { marginTop: '10px' } }, 'Если друг не может подключиться — у него или у вас строгий NAT/VPN. Попробуйте другую сеть.')));
@@ -524,8 +622,11 @@ function renderHostLobby() {
 
 function startHosted() {
   const room = net.room; if (!room) return;
+  const money = MONEY.has(room.game), bi = room.opts.buyIn;
+  if (money && (!bi || !wallet.buyIn(bi, `Вход · ${GAMES[room.game].mod.meta.name}`))) { openCashier(bi || BUYIN[room.game].min); return; }
+  if (money) store.set({ pendingTable: { amount: bi } });
   const handle = room.startGame({ bots: net.bots });
-  openPlay({ id: room.game, handle, mode: 'host', room });
+  openPlay({ id: room.game, handle, mode: 'host', room, wal: money ? { paid: bi, start: bi } : null });
 }
 
 function leaveRoom() { if (net.room) { try { net.room.close(); } catch { /* */ } net.room = null; } }
@@ -535,10 +636,13 @@ async function joinRoom(code) {
   guest.on('lobby', (m) => { net.guestMeta = m; guest.playing = false; if (current && current.mode === 'guest') { closePlay(true).then(() => { history.replaceState(null, '', '#/'); showGuestLobby(); }); } else if (net.sheet) renderGuestLobby(); });
   guest.on('start', async (m) => {
     const g = GAMES[m.game]; if (!g) return;
+    const money = MONEY.has(m.game), bi = m.opts && m.opts.buyIn;
+    if (money && (!bi || !wallet.buyIn(bi, `Вход · ${g.mod.meta.name}`))) { toast('Недостаточно средств для входа за стол'); guest.leave(); net.guest = null; net.guestMeta = null; net.sheet && net.sheet.close(); openCashier(bi); return; }
+    if (money) store.set({ pendingTable: { amount: bi } });
     guest.playing = true;
     net.sheet && net.sheet.close();
     guest.setMod(g.mod);
-    openPlay({ id: m.game, handle: guest, mode: 'guest', guest });
+    openPlay({ id: m.game, handle: guest, mode: 'guest', guest, wal: money ? { paid: bi, start: bi } : null });
   });
   guest.on('closed', () => { if (net.guest !== guest) return; toast('Комната закрыта'); net.guest = null; net.guestMeta = null; if (current && current.mode === 'guest') requestExit(true); net.sheet && net.sheet.close(); });
   guest.on('kicked', () => { toast('Хост убрал вас из комнаты'); net.guest = null; net.sheet && net.sheet.close(); });

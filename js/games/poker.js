@@ -68,7 +68,7 @@ export function mount(root, handle, ctx) {
       v.players.forEach((p) => s.sync(seats.get(p.id).cards, p.hole, { prefix: 'h' }));
     });
     // карты: размеры
-    table.style.setProperty('--cw-me', 'clamp(46px, 8vw, 74px)');
+    table.style.setProperty('--cw-me', 'clamp(38px, min(8vw, 11dvh), 74px)');
     v.players.forEach((p, idx) => {
       const r = seats.get(p.id);
       countTo(r.chips, p.chips, 450);
@@ -141,9 +141,9 @@ export function mount(root, handle, ctx) {
       const lo = L.minTo, hi = L.maxTo;
       if (raiseTo < lo || raiseTo > hi) raiseTo = lo;
       const out = h('b', { class: 'rv' }, fmt(raiseTo));
-      const slider = h('input', { type: 'range', min: lo, max: hi, step: 1, value: raiseTo, 'aria-label': 'Размер рейза', style: { accentColor: 'var(--accent)', flex: 1, minWidth: '140px' } });
+      const slider = h('input', { type: 'range', min: lo, max: hi, step: Math.max(1, Math.floor(v.unit / 2)), value: raiseTo, 'aria-label': 'Размер рейза', style: { accentColor: 'var(--accent)', flex: 1, minWidth: '140px' } });
       slider.addEventListener('input', () => { raiseTo = +slider.value; out.textContent = fmt(raiseTo); go.firstChild.textContent = raiseTo >= hi ? 'Олл-ин' : 'Рейз до ' + fmt(raiseTo); });
-      const q = (label, frac) => btn(label, () => { const t = Math.round((v.currentBet + (L.pot + L.toCall) * frac) / 5) * 5; raiseTo = Math.max(lo, Math.min(hi, t)); slider.value = raiseTo; slider.dispatchEvent(new Event('input')); }, 'ghost sm');
+      const q = (label, frac) => btn(label, () => { const t = Math.round((v.currentBet + (L.pot + L.toCall) * frac) / v.unit) * v.unit; raiseTo = Math.max(lo, Math.min(hi, t)); slider.value = raiseTo; slider.dispatchEvent(new Event('input')); }, 'ghost sm');
       const go = btn(raiseTo >= hi ? 'Олл-ин' : 'Рейз до ' + fmt(raiseTo), () => act(raiseTo >= hi ? { t: 'allin' } : { t: 'raise', to: raiseTo }), 'primary');
       ctrl.append(h('div', { class: 'raise-panel' }, h('div', { class: 'row', style: { flexWrap: 'nowrap', width: '100%' } }, slider, out), h('div', { class: 'row' }, q('½ банка', 0.5), q('¾', 0.75), q('Банк', 1), btn('Олл-ин', () => { raiseTo = hi; slider.value = hi; slider.dispatchEvent(new Event('input')); }, 'ghost sm'))), h('div', { class: 'row' }, btn('Назад', () => { raiseOpen = false; renderControls(v, mine, cur); }, 'ghost'), go));
       keymap.enter = () => go.click(); keymap.escape = () => { raiseOpen = false; renderControls(v, mine, cur); };

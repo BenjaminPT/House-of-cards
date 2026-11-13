@@ -10,7 +10,7 @@ export const colorOf = (n) => (n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black'
 export const numAt = (c, r) => 3 * c + (3 - r); // колонка 0..11, строка 0..2 (сверху)
 
 // ---- допустимые ставки ----
-const SPOTS = new Map();
+export const SPOTS = new Map();
 const key = (nums) => [...nums].sort((a, b) => a - b).join('-');
 const addSpot = (nums, type, payout, label) => SPOTS.set(key(nums), { type, payout, label, nums: [...nums].sort((a, b) => a - b) });
 for (let n = 0; n <= 36; n++) addSpot([n], 'straight', 35, `№${n}`);
@@ -34,10 +34,12 @@ export const spotInfo = (nums) => SPOTS.get(key(nums)) || null;
 export const spotKey = key;
 
 export function init(players, opts = {}, rnd = Math.random) {
+  const unit = opts.unit || 5;
   return {
+    unit, maxTotal: unit * 400,
     game: 'roulette', phase: 'bet', round: 1, spinId: 0, result: null, history: [],
     players: players.map((p) => ({
-      id: p.id, name: p.name, bot: !!p.bot, chips: START, bets: [], stack: [], ready: false, last: [], delta: 0,
+      id: p.id, name: p.name, bot: !!p.bot, chips: p.chips ?? opts.buyIn ?? START, start: p.chips ?? opts.buyIn ?? START, bets: [], stack: [], ready: false, last: [], delta: 0,
     })),
   };
 }
@@ -83,6 +85,7 @@ export function act(st, pid, a, rnd = Math.random) {
     case 'bet': {
       const amt = Math.floor(+a.amount);
       if (p.ready || !(amt > 0) || amt > p.chips || !Array.isArray(a.nums) || !spotInfo(a.nums)) return 'bad-bet';
+      if (staked(p) + amt > st.maxTotal) return 'table-limit';
       place(p, a.nums, amt); return null;
     }
     case 'undo': {
@@ -106,7 +109,7 @@ export function act(st, pid, a, rnd = Math.random) {
     }
     case 'rebuy':
       if (p.chips > 0 || p.bets.length || p.ready) return 'cannot';
-      p.chips = START; return null;
+      p.chips = p.start; return null;
     case 'ready':
       if (p.ready) return null;
       p.ready = true;
@@ -146,8 +149,9 @@ export function bot(st, pid, rnd = Math.random) {
   if (!p || st.phase !== 'bet' || p.ready) return null;
   if (p.chips <= 0 && !p.bets.length) return { t: 'rebuy' };
   const target = 1 + ((st.round + st.players.indexOf(p)) % 3);
-  if (p.stack.length >= target || p.chips < 5) return { t: 'ready' };
-  const amount = Math.max(5, Math.min(p.chips, Math.round((p.chips * (0.02 + rnd() * 0.05)) / 5) * 5));
+  const u = st.unit;
+  if (p.stack.length >= target || p.chips < u) return { t: 'ready' };
+  const amount = Math.max(u, Math.min(p.chips, Math.round((p.chips * (0.02 + rnd() * 0.05)) / u) * u));
   const roll = rnd();
   let nums;
   if (roll < 0.45) nums = [...[...SPOTS.values()].filter((s) => s.type === 'even')[Math.floor(rnd() * 6)].nums];

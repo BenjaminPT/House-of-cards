@@ -1,6 +1,7 @@
 // UI «Сиквенс». Реальные правила: карту из колоды берёте сами и до хода следующего игрока.
 import * as sq from '../engines/sequence.js';
 import { SUIT_CH } from '../engines/common.js';
+import { suitSym } from '../core/suits.js';
 import * as store from '../core/store.js';
 import * as stats from '../core/stats.js';
 import { h, btn, hotkeys, avatar, toast } from '../core/ui.js';
@@ -49,7 +50,7 @@ export function mount(root, handle, ctx) {
     const el = b === 'F'
       ? h('button', { class: 'sc corner', type: 'button', tabindex: -1, 'aria-label': 'Свободный угол', disabled: true }, h('span', { class: 'free' }, '★'))
       : h('button', { class: 'sc s-' + b.s, type: 'button', role: 'gridcell', 'data-r': r, 'data-c': c, 'aria-label': `${b.r} ${b.s}`, onclick: () => onCell(r, c), onpointerenter: () => hoverCard(b), onpointerleave: () => hoverCard(null) },
-        h('span', { class: 'r' }, b.r), h('span', { class: 's' }, SUIT_CH[b.s] + VS));
+        h('span', { class: 'r' }, b.r), h('span', { class: 's', html: suitSym(b.s) }));
     el.append(h('i', { class: 'tok' }));
     cells.push(el); boardEl.append(el);
   }

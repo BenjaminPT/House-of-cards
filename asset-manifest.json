@@ -5,11 +5,16 @@
  "js/core/anim.js",
  "js/core/cards.js",
  "js/core/net.js",
+ "js/core/payments.js",
  "js/core/session.js",
  "js/core/sfx.js",
+ "js/core/splash.js",
  "js/core/stats.js",
  "js/core/store.js",
+ "js/core/suits.js",
+ "js/core/tables.js",
  "js/core/ui.js",
+ "js/core/wallet.js",
  "js/engines/blackjack.js",
  "js/engines/common.js",
  "js/engines/poker.js",
@@ -26,5 +31,10 @@
  "icons/icon-192.png",
  "icons/icon-512.png",
  "icons/icon-maskable-512.png",
- "icons/icon.svg"
+ "icons/icon.svg",
+ "fonts/Inter-Bold.woff",
+ "fonts/Inter-Medium.woff",
+ "fonts/Inter-Regular.woff",
+ "fonts/Inter-SemiBold.woff",
+ "fonts/LICENSE.txt"
 ]

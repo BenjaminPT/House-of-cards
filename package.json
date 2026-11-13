@@ -44,6 +44,7 @@
       "css/**/*",
       "js/**/*",
       "icons/**/*",
+      "fonts/**/*",
       "package.json"
     ],
     "win": {

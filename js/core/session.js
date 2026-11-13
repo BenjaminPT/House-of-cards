@@ -14,7 +14,7 @@ export class HostSession {
     this.players = players;
     this.backs = Object.fromEntries(players.filter((p) => p.back).map((p) => [p.id, p.back]));
     this.names = Object.fromEntries(players.map((p) => [p.id, p.name]));
-    this.st = mod.init(players.map((p) => ({ id: p.id, name: p.name, bot: !!p.bot })), opts, this.rnd);
+    this.st = mod.init(players.map((p) => ({ id: p.id, name: p.name, bot: !!p.bot, chips: p.chips })), opts, this.rnd);
     this.bots = new Set(players.filter((p) => p.bot).map((p) => p.id));
     this.sinks = new Map(); // pid → (view)=>void
     this.timers = [];

@@ -85,3 +85,9 @@ export function avatar(name, color) {
   }
   return a;
 }
+
+// компактная подпись номинала фишки: 1500 → 1.5K, 2 000 000 → 2M
+export const fmtShort = (n) => {
+  const t = (x, u) => (Math.round(x * 10) / 10).toString().replace(/\.0$/, '') + u;
+  return n >= 1e9 ? t(n / 1e9, 'B') : n >= 1e6 ? t(n / 1e6, 'M') : n >= 1e3 ? t(n / 1e3, 'K') : String(n);
+};

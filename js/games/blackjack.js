@@ -1,13 +1,13 @@
 // UI «21»
 import * as bj from '../engines/blackjack.js';
-import { h, btn, fmt, hotkeys, avatar } from '../core/ui.js';
+import { h, btn, fmt, fmtShort, hotkeys, avatar } from '../core/ui.js';
 import { Stage } from '../core/cards.js';
 import { countTo, floatText, pop, shake } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
 import * as stats from '../core/stats.js';
 import { backURL } from '../core/cards.js';
 
-const CHIPS = [10, 50, 100, 500];
+const CHIP_MUL = [1, 5, 10, 50];
 const RES = { win: 'Победа', lose: 'Проигрыш', push: 'Ничья', bust: 'Перебор', blackjack: 'Блэкджек' };
 
 export function mount(root, handle, ctx) {
@@ -46,7 +46,7 @@ export function mount(root, handle, ctx) {
       refs.el = el; refs.handEls = [];
       seatsEl.append(el); seatRefs.set(p.id, refs);
     });
-    stageRoot.style.setProperty('--cw', (v.players.length >= 4 ? 'clamp(40px, 7.4vw, 64px)' : v.players.length === 3 ? 'clamp(46px, 8.4vw, 72px)' : 'clamp(52px, 10vw, 84px)'));
+    stageRoot.style.setProperty('--cw', (v.players.length >= 4 ? 'clamp(36px, min(7.4vw, 10dvh), 64px)' : v.players.length === 3 ? 'clamp(40px, min(8.4vw, 11dvh), 72px)' : 'clamp(44px, min(10vw, 12dvh), 84px)'));
     built = v.players.length;
   }
 
@@ -123,18 +123,19 @@ export function mount(root, handle, ctx) {
     if (!mine) return;
     if (v.phase === 'bet') {
       if (mine.ready) { ctrl.append(btn('Изменить ставку', () => handle.act({ t: 'unready' }), 'ghost')); return; }
-      if (mine.chips < 10 && mine.bet < 10) { ctrl.append(btn('Новый стек · 1000', () => handle.act({ t: 'rebuy' }), 'primary')); return; }
+      if (mine.chips < v.unit && mine.bet < v.unit) { ctrl.append(btn(`Докупить · ${fmt(mine.start)}`, () => handle.act({ t: 'rebuy' }), 'primary')); return; }
       const row = h('div', { class: 'chip-row', role: 'group', 'aria-label': 'Фишки' });
-      for (const c of CHIPS) {
-        const b = h('button', { class: 'chip c' + c, type: 'button', 'aria-label': `Добавить ${c}`, disabled: mine.chips - 0 < 1 || mine.bet + c > mine.chips, onclick: () => { sfx.chip(); handle.act({ t: 'bet', amount: Math.min(mine.chips, mine.bet + c) }); } }, String(c));
+      CHIP_MUL.forEach((mul, ci) => {
+        const c = mul * v.unit;
+        const b = h('button', { class: 'chip k' + ci, type: 'button', 'aria-label': `Добавить ${c}`, disabled: mine.chips - 0 < 1 || mine.bet + c > mine.chips, onclick: () => { sfx.chip(); handle.act({ t: 'bet', amount: Math.min(mine.chips, v.maxBet, mine.bet + c) }); } }, fmtShort(c));
         row.append(b);
-      }
+      });
       const bar = h('div', { class: 'bet-bar' },
         h('span', { class: 'bet-now' }, 'Ставка ', h('b', null, fmt(mine.bet))),
         btn('Сброс', () => handle.act({ t: 'bet', amount: 0 }), 'ghost sm'),
-        btn('Всё', () => { sfx.chip(); handle.act({ t: 'bet', amount: mine.chips }); }, 'ghost sm'));
-      ctrl.append(row, bar, btn('Раздать', () => handle.act({ t: 'ready' }), 'primary', { disabled: mine.bet < 10 }));
-      keymap.enter = () => mine.bet >= 10 && handle.act({ t: 'ready' });
+        btn('Всё', () => { sfx.chip(); handle.act({ t: 'bet', amount: Math.min(mine.chips, v.maxBet) }); }, 'ghost sm'));
+      ctrl.append(row, bar, btn('Раздать', () => handle.act({ t: 'ready' }), 'primary', { disabled: mine.bet < v.unit }));
+      keymap.enter = () => mine.bet >= v.unit && handle.act({ t: 'ready' });
       return;
     }
     if (v.phase === 'play' && turnPid === me) {

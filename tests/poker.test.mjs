@@ -34,8 +34,8 @@ function sim(seed, n, maxHands) {
       assert.equal(pk.act(st, 'sys', sys.action, rnd), null);
     } else break;
     const tot = st.players.reduce((a, p) => a + p.chips + p.total * (st.phase === 'hand_over' ? 0 : 1), 0);
-    if (st.phase !== 'hand_over') assert.equal(tot, startTotal, 'chips conservation, phase ' + st.phase);
-    else assert.equal(st.players.reduce((a, p) => a + p.chips, 0), startTotal, 'chips conservation at showdown');
+    if (st.phase !== 'hand_over') assert.equal(tot + st.rakeTotal, startTotal, 'chips conservation, phase ' + st.phase);
+    else assert.equal(st.players.reduce((a, p) => a + p.chips, 0) + st.rakeTotal, startTotal, 'chips conservation at showdown');
     for (const p of st.players) assert.ok(p.chips >= 0);
   }
   assert.ok(guard < 100000, 'loop');

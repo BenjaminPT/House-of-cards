@@ -1,11 +1,10 @@
 // Отрисовка карт, рубашки (кастомизация) и Stage — менеджер карт с FLIP-анимациями.
 import * as store from './store.js';
 import { anim, spring, flipFrom, flyIn, rectOf, reduced } from './anim.js';
-import { SUIT_CH } from '../engines/common.js';
+import { SUIT_PATH, suitSym } from './suits.js';
 import { sfx } from './sfx.js';
 
-const VS = '︎'; // запрет эмодзи-вида у ♥ ♦
-const suit = (s) => SUIT_CH[s] + VS;
+const suit = (s) => suitSym(s);
 
 /* ======================= Рубашки ======================= */
 export const BACK_DESIGNS = ['diamonds', 'lines', 'dots', 'waves', 'grid', 'scales', 'stars', 'rings', 'gradient', 'solid', 'photo'];
@@ -45,7 +44,7 @@ function patternDef(design, c2) {
   }
 }
 
-const EMBLEM_GLYPH = { spade: '♠', heart: '♥', diamond: '♦', club: '♣', star: '★' };
+const EMBLEM_SUIT = { spade: 'S', heart: 'H', diamond: 'D', club: 'C' };
 
 export function backSVG(cfg) {
   const c1 = okColor(cfg.c1, '#1d2f4a'), c2 = okColor(cfg.c2, '#d8b36a');
@@ -72,11 +71,12 @@ export function backSVG(cfg) {
   if (em !== 'none') {
     body += `<circle cx="50" cy="70" r="19" fill="${c1}" stroke="${edge}" stroke-width=".9"/>`;
     const gc = d === 'gradient' || d === 'photo' ? '#ffffff' : c2;
-    if (EMBLEM_GLYPH[em]) body += `<text x="50" y="71" font-size="24" text-anchor="middle" dominant-baseline="central" fill="${gc}" font-family="Georgia,serif">${EMBLEM_GLYPH[em]}${VS}</text>`;
-    else if (em === 'crown') body += `<path d="M38 77V62l7 7 5-11 5 11 7-7v15Z" fill="${gc}"/>`;
+    if (EMBLEM_SUIT[em]) body += `<g transform="translate(50 70) scale(1.05) translate(-12 -12)" fill="${gc}"><path d="${SUIT_PATH[EMBLEM_SUIT[em]]}"/></g>`;
+    else if (em === 'star') body += `<path transform="translate(50 70)" d="M0-11L3.1-3.4L11-3.4L4.7 1.6L7 9.5L0 4.9L-7 9.5L-4.7 1.6L-11-3.4L-3.1-3.4Z" fill="${gc}"/>`;
+    else if (em === 'crown') body += `<path d="M38 76V63l7 6 5-10 5 10 7-6v13Z" fill="${gc}"/>`;
     else if (em === 'monogram') {
       const t = esc((cfg.text || 'H').slice(0, 3));
-      body += `<text x="50" y="71" font-size="${t.length > 2 ? 14 : t.length > 1 ? 18 : 24}" text-anchor="middle" dominant-baseline="central" fill="${gc}" font-family="Georgia,serif" font-style="italic" font-weight="700">${t}</text>`;
+      body += `<text x="50" y="70" font-size="${t.length > 2 ? 14 : t.length > 1 ? 18 : 24}" text-anchor="middle" dominant-baseline="central" fill="${gc}" font-family="Georgia,serif" font-style="italic" font-weight="700">${t}</text>`;
     }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice"><defs>${defs}</defs>${body}</svg>`;

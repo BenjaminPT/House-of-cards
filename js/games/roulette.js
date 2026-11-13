@@ -1,12 +1,12 @@
 // UI рулетки: анимированное колесо + стол со всеми видами ставок
 import * as ro from '../engines/roulette.js';
-import { h, btn, fmt, hotkeys, avatar } from '../core/ui.js';
+import { h, btn, fmt, fmtShort, hotkeys, avatar } from '../core/ui.js';
 import { anim, countTo, floatText, pop, reduced, sleep } from '../core/anim.js';
 import { sfx } from '../core/sfx.js';
 import * as stats from '../core/stats.js';
 
 const STEP = 360 / 37;
-const CHIP_VALUES = [5, 10, 25, 100, 500];
+const CHIP_MUL = [1, 2, 5, 20, 100];
 const polar = (r, deg) => [r * Math.sin((deg * Math.PI) / 180), -r * Math.cos((deg * Math.PI) / 180)];
 const num = (c, r) => 3 * c + (3 - r);
 const COLOR = { red: '#b8323a', black: '#17191e', green: '#26774a' };
@@ -30,7 +30,7 @@ function wheelSVG() {
 
 export function mount(root, handle, ctx) {
   const me = handle.me;
-  let selChip = 25, prev = null, spinning = false, wheelAngle = 0;
+  let selChip = 0, CHIP_VALUES = CHIP_MUL.slice(), prev = null, spinning = false, wheelAngle = 0;
   const bettable = new Map(); // key → element
   const keymap = {};
 
@@ -186,10 +186,11 @@ export function mount(root, handle, ctx) {
 
   function renderControls(v, m) {
     ctrl.replaceChildren();
+    CHIP_VALUES = CHIP_MUL.map((x) => x * v.unit); if (!CHIP_VALUES.includes(selChip)) selChip = CHIP_VALUES[2];
     for (const k of Object.keys(keymap)) delete keymap[k];
-    const chips = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': 'Номинал фишки' }, CHIP_VALUES.map((c) => h('button', { class: 'chip c' + c + (selChip === c ? ' sel' : ''), type: 'button', role: 'radio', 'aria-checked': String(selChip === c), 'aria-label': 'Фишка ' + c, onclick: () => { selChip = c; sfx.click(); renderControls(v, m); } }, String(c))));
+    const chips = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': 'Номинал фишки' }, CHIP_VALUES.map((c, ci) => h('button', { class: 'chip k' + ci + (selChip === c ? ' sel' : ''), type: 'button', role: 'radio', 'aria-checked': String(selChip === c), 'aria-label': 'Фишка ' + c, onclick: () => { selChip = c; sfx.click(); renderControls(v, m); } }, fmtShort(c))));
     if (v.phase !== 'bet') { ctrl.append(h('span', { class: 'hint' }, v.phase === 'spin' ? 'Колесо вращается…' : 'Новый раунд через мгновение')); return; }
-    if (m.chips <= 0 && !m.bets.length) { ctrl.append(btn('Новый стек · 1000', () => handle.act({ t: 'rebuy' }), 'primary')); return; }
+    if (m.chips <= 0 && !m.bets.length) { ctrl.append(btn(`Докупить · ${fmt(m.start)}`, () => handle.act({ t: 'rebuy' }), 'primary')); return; }
     if (m.ready) { ctrl.append(btn('Изменить ставки', () => handle.act({ t: 'unready' }), 'ghost')); return; }
     ctrl.append(chips,
       h('div', { class: 'row' },

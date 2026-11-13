@@ -3,10 +3,10 @@ import { newDeck, shuffle } from './common.js';
 
 export const meta = {
   id: 'blackjack', name: '21', min: 1, max: 5,
-  desc: 'Блэкджек против дилера: удвоение, сплит, ставки.',
+  desc: 'Блэкджек как в казино: 6 колод, дилер берёт на мягких 17, блэкджек 3:2, удвоение, сплит.',
 };
 const START = 1000;
-const MIN_BET = 10;
+const DEF_UNIT = 10; // минимальная ставка/фишка; масштабируется под стол
 const val = (r) => (r === 'A' ? 11 : ['J', 'Q', 'K'].includes(r) ? 10 : +r);
 
 export function total(cards) {
@@ -26,24 +26,26 @@ function draw(st, rnd) {
 }
 
 export function init(players, opts = {}, rnd = Math.random) {
+  const unit = opts.unit || DEF_UNIT;
   const st = {
     game: 'blackjack', phase: 'bet', round: 0, seq: 0, shoe: shuffle(newDeck(6), rnd),
+    unit, maxBet: unit * 200, rake: 0,
     players: players.map((p) => ({
-      id: p.id, name: p.name, bot: !!p.bot, chips: START, bet: 0, lastBet: 50,
+      id: p.id, name: p.name, bot: !!p.bot, chips: p.chips ?? opts.buyIn ?? START, start: p.chips ?? opts.buyIn ?? START, bet: 0, lastBet: unit * 5,
       ready: false, next: false, hands: [], active: 0, delta: 0,
     })),
     dealer: { cards: [] }, holeUp: false, turn: -1, order: [], ds: 0, dealerBJ: false,
   };
-  for (const p of st.players) p.bet = Math.min(p.lastBet, p.chips);
+  for (const p of st.players) p.bet = Math.min(p.lastBet, p.chips, st.maxBet);
   return st;
 }
 
-const eligible = (p) => p.chips >= MIN_BET || p.bet >= MIN_BET;
+const eligible = (st) => (p) => p.chips >= st.unit || p.bet >= st.unit;
 const bust = (h) => total(h.cards).t > 21;
 const isNatural = (h) => h.cards.length === 2 && !h.fromSplit && total(h.cards).t === 21;
 
 function maybeStart(st) {
-  const el = st.players.filter(eligible);
+  const el = st.players.filter(eligible(st));
   if (!el.length || !el.every((p) => p.ready)) return;
   st.phase = 'deal';
   st.round++;
@@ -53,7 +55,7 @@ function maybeStart(st) {
   st.order = [];
   const seats = [];
   st.players.forEach((p, idx) => {
-    if (p.ready && p.bet >= MIN_BET) {
+    if (p.ready && p.bet >= st.unit) {
       p.chips -= p.bet;
       p.lastBet = p.bet;
       p.delta = -p.bet;
@@ -133,8 +135,8 @@ function resetRound(st, rnd) {
   if (st.shoe.length < 80) st.shoe = shuffle(newDeck(6), rnd);
   for (const p of st.players) {
     p.hands = []; p.ready = false; p.next = false; p.delta = 0; p.active = 0;
-    p.bet = Math.min(p.lastBet, p.chips);
-    if (p.bet < MIN_BET) p.bet = 0;
+    p.bet = Math.min(p.lastBet, p.chips, st.maxBet);
+    if (p.bet < st.unit) p.bet = 0;
   }
 }
 
@@ -150,7 +152,8 @@ export function act(st, pid, a, rnd = Math.random) {
     if (a.t === 'dealerStep' && st.phase === 'dealer') {
       if (!st.holeUp) { st.holeUp = true; return null; }
       const live = st.players.some((p) => p.hands.some((h) => !bust(h) && !isNatural(h)));
-      if (!st.dealerBJ && live && total(st.dealer.cards).t < 17) st.dealer.cards.push(draw(st, rnd));
+      const dt = total(st.dealer.cards);
+      if (!st.dealerBJ && live && (dt.t < 17 || (dt.t === 17 && dt.soft))) st.dealer.cards.push(draw(st, rnd));
       else settle(st);
       return null;
     }
@@ -163,18 +166,19 @@ export function act(st, pid, a, rnd = Math.random) {
       if (st.phase !== 'bet' || p.ready) return 'locked';
       const amt = Math.floor(+a.amount);
       if (!(amt >= 0 && amt <= p.chips)) return 'bad-amount';
+      if (amt > st.maxBet) return 'table-limit';
       p.bet = amt;
       return null;
     }
     case 'ready':
-      if (st.phase !== 'bet' || p.ready || p.bet < MIN_BET) return 'cannot';
+      if (st.phase !== 'bet' || p.ready || p.bet < st.unit) return 'cannot';
       p.ready = true; maybeStart(st); return null;
     case 'unready':
       if (st.phase !== 'bet') return 'cannot';
       p.ready = false; return null;
     case 'rebuy':
-      if (st.phase !== 'bet' || p.chips >= MIN_BET || p.ready) return 'cannot';
-      p.chips = START; p.bet = Math.min(p.lastBet, p.chips); return null;
+      if (st.phase !== 'bet' || p.chips >= st.unit || p.ready) return 'cannot';
+      p.chips = p.start; p.bet = Math.min(p.lastBet, p.chips, st.maxBet); return null;
     case 'next':
       if (st.phase !== 'done' || p.next) return 'cannot';
       p.next = true;
@@ -231,7 +235,7 @@ export function auto(st) {
 export function timeoutAction(st, pid) {
   if (st.phase === 'bet') {
     const p = st.players.find((x) => x.id === pid);
-    return p.bet >= MIN_BET ? { t: 'ready' } : p.chips >= MIN_BET ? { t: 'bet', amount: MIN_BET } : { t: 'rebuy' };
+    return p.bet >= st.unit ? { t: 'ready' } : p.chips >= st.unit ? { t: 'bet', amount: st.unit } : { t: 'rebuy' };
   }
   if (st.phase === 'done') return { t: 'next' };
   return { t: 'stand' };
@@ -251,11 +255,12 @@ export function bot(st, pid, rnd = Math.random) {
   if (!p) return null;
   if (st.phase === 'bet') {
     if (p.ready) return null;
-    if (p.chips < MIN_BET && p.bet < MIN_BET) return { t: 'rebuy' };
+    if (p.chips < st.unit && p.bet < st.unit) return { t: 'rebuy' };
     // ставка детерминирована (раунд + место), иначе бот бесконечно «перекладывает» фишки
     const idx = st.players.indexOf(p);
     const frac = 0.03 + (((st.round * 7 + idx * 5) % 9) / 100);
-    const want = Math.max(MIN_BET, Math.min(p.chips, Math.round((p.chips * frac) / 10) * 10));
+    const u = st.unit;
+    const want = Math.max(u, Math.min(p.chips, st.maxBet, Math.round((p.chips * frac) / u) * u));
     if (p.bet !== want) return { t: 'bet', amount: want };
     return { t: 'ready' };
   }

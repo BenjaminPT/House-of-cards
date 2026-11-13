@@ -1,6 +1,7 @@
 // UI косынки: перетаскивание (pointer events), тап-для-хода, подсказки, автосбор, отмена.
 import * as so from '../engines/solitaire.js';
-import { SUITS, SUIT_CH, RANKS } from '../engines/common.js';
+import { SUITS, RANKS } from '../engines/common.js';
+import { suitSym } from '../core/suits.js';
 import { h, btn, fmt, hotkeys } from '../core/ui.js';
 import { Stage, makeCard } from '../core/cards.js';
 import { anim, countTo, pop, reduced, sleep } from '../core/anim.js';
@@ -24,7 +25,7 @@ export function mount(root, handle, ctx) {
   bar.append(h('span', null, 'Очки ', stats.score), h('span', null, 'Ходы ', stats.moves), h('span', null, 'Время ', stats.time), others);
   const top = h('div', { class: 'sol-top' },
     h('div', { class: 'sol-left' }, mkPile('stock', 'stock', h('span', { class: 'ph', 'aria-hidden': 'true' }, '↻')), mkPile('waste', 'waste', null)),
-    h('div', { class: 'sol-found' }, SUITS.map((s, i) => mkPile('found', 'f' + i, h('span', { class: 'ph s-' + s, 'aria-hidden': 'true' }, SUIT_CH[s] + VS)))));
+    h('div', { class: 'sol-found' }, SUITS.map((s, i) => mkPile('found', 'f' + i, h('span', { class: 'ph s-' + s, 'aria-hidden': 'true', html: suitSym(s) })))));
   const tab = h('div', { class: 'sol-tab' }, [0, 1, 2, 3, 4, 5, 6].map((i) => mkPile('tab', 't' + i, null)));
   const ctrl = h('div', { class: 'controls sol-ctrl' });
   const dragLayer = h('div', { class: 'drag-layer' });
@@ -39,6 +40,8 @@ export function mount(root, handle, ctx) {
     const W = sol.clientWidth || root.clientWidth || 360;
     const gap = Math.max(5, Math.min(14, W * 0.014));
     cw = Math.max(38, Math.min(96, Math.floor((W - gap * 6 - 4) / 7)));
+    const H = sol.clientHeight || root.clientHeight || 0; // низкий экран (ландшафт телефона): карта ≤ ~1/4,7 высоты
+    if (H) cw = Math.max(34, Math.min(cw, Math.floor(H / 4.7)));
     sol.style.setProperty('--cw', cw + 'px'); sol.style.setProperty('--gap', gap + 'px');
     return gap;
   }

@@ -16,6 +16,8 @@ export const DEFAULTS = {
   back: { design: 'diamonds', c1: '#1d2f4a', c2: '#d8b36a', emblem: 'spade', text: '', image: null, frame: 'thin', scale: 1 },
   slots: [null, null, null],
   stats: {},
+  wallet: null, // { balance, history } — создаётся при первом обращении
+  pendingTable: null, // вход за стол, который ещё не вернулся на баланс
 };
 
 let cache = null;

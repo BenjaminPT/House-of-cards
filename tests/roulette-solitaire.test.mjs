@@ -85,3 +85,12 @@ assert.equal(ro.spotInfo([1, 6]), null);
   // дуэль: победитель определяется
   console.log('solitaire OK, greedy wins:', wins, '/ 60');
 })();
+
+// Казино-математика: каждая ставка рулетки имеет ожидание ровно −1/37 (европейское колесо, 2,70%)
+{
+  const { spotInfo } = await import('../js/engines/roulette.js');
+  const { SPOTS } = await import('../js/engines/roulette.js');
+  let n = 0;
+  for (const sp of (SPOTS ? SPOTS.values() : [])) { assert.equal(sp.nums.length * (sp.payout + 1), 36, 'edge ' + sp.label); n++; }
+  console.log('roulette house edge OK, spots:', n);
+}

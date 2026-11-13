@@ -6,7 +6,9 @@ export const meta = {
   desc: 'Техасский холдем: блайнды, олл-ин, сайд-поты.',
 };
 const START = 1500;
-const LEVELS = [[10, 20], [15, 30], [25, 50], [50, 100], [75, 150], [100, 200], [150, 300], [200, 400], [300, 600], [500, 1000]];
+// блайнды в «юнитах» стола (unit = 1 ставка-фишка); BB стартует с 2 юнитов
+const LEVELS = [[1, 2], [2, 4], [3, 6], [5, 10], [8, 16], [10, 20], [15, 30], [20, 40], [30, 60], [50, 100]];
+const RAKE_PCT = 0.05, RAKE_CAP_BB = 3; // как в казино: 5% с банка, не больше 3 BB, и только если был флоп
 const HANDS_PER_LEVEL = 6;
 const rv = (r) => (r === 'A' ? 14 : r === 'K' ? 13 : r === 'Q' ? 12 : r === 'J' ? 11 : +r);
 export const HAND_NAMES = ['Старшая карта', 'Пара', 'Две пары', 'Тройка', 'Стрит', 'Флеш', 'Фулл-хаус', 'Каре', 'Стрит-флеш'];
@@ -56,7 +58,7 @@ export function bestOf(cards) {
 // ---- состояние ----
 function blinds(st) {
   const lvl = Math.min(LEVELS.length - 1, Math.floor(Math.max(0, st.hands - 1) / HANDS_PER_LEVEL));
-  return LEVELS[lvl];
+  return LEVELS[lvl].map((x) => x * st.unit);
 }
 const alive = (st) => st.players.filter((p) => p.chips > 0 || p.total > 0 || !p.out);
 const canAct = (p) => !p.folded && !p.allin && !p.out;
@@ -64,10 +66,10 @@ const canAct = (p) => !p.folded && !p.allin && !p.out;
 export function init(players, opts = {}, rnd = Math.random) {
   const styles = [0.85, 1, 1.2, 0.95, 1.1, 0.9];
   const st = {
-    game: 'poker', phase: 'preflop', hands: 0, seq: 0, deck: [], board: [], dealer: -1, current: -1,
+    game: 'poker', unit: opts.unit || 10, rake: 0, rakeTotal: 0, phase: 'preflop', hands: 0, seq: 0, deck: [], board: [], dealer: -1, current: -1,
     currentBet: 0, lastRaise: 0, sb: 10, bb: 20, result: null, winner: null, reveal: false, lastAction: null,
     players: players.map((p, i) => ({
-      id: p.id, name: p.name, bot: !!p.bot, chips: START, bet: 0, total: 0, folded: false, allin: false,
+      id: p.id, name: p.name, bot: !!p.bot, chips: p.chips ?? opts.buyIn ?? START, start: p.chips ?? opts.buyIn ?? START, bet: 0, total: 0, folded: false, allin: false,
       acted: false, out: false, hole: [], act: null, style: styles[i % styles.length],
     })),
   };
@@ -123,6 +125,7 @@ function startHand(st, rnd) {
   }
   st.phase = 'preflop';
   st.current = headsUp ? st.dealer : nextIdx(st, bbI, canAct);
+  if (st.current >= 0 && !canAct(st.players[st.current])) st.current = nextIdx(st, st.current, canAct); // короткий стек уже в олл-ине
   if (st.current === -1 || st.players.filter(canAct).length < 2 && st.players[st.current] && st.players[st.current].bet >= st.currentBet) st.current = -1;
 }
 
@@ -162,11 +165,17 @@ function award(st, showdown) {
     st.reveal = true;
   }
   const levels = [...new Set(contenders.map((p) => p.total))].sort((a, b) => a - b);
+  // рейк: только если флоп был сдан; берём с основного банка
+  let rake = 0;
+  if (st.board.length >= 3) rake = Math.min(Math.floor(st.players.reduce((a, p) => a + p.total, 0) * RAKE_PCT), st.bb * RAKE_CAP_BB);
+  st.rake = rake; st.rakeTotal += rake;
+  let rakeLeft = rake;
   let prev = 0;
   levels.forEach((L, idx) => {
     let amount = 0;
     for (const p of st.players) amount += Math.min(Math.max(p.total - prev, 0), L - prev);
     if (idx === levels.length - 1) for (const p of st.players) amount += Math.max(p.total - L, 0);
+    if (rakeLeft > 0) { const cut = Math.min(rakeLeft, amount); amount -= cut; rakeLeft -= cut; }
     const el = contenders.filter((p) => p.total >= L);
     let winners = el;
     if (showdown && el.length > 1) {
@@ -196,7 +205,7 @@ export function act(st, pid, a, rnd = Math.random) {
   }
   if (a.t === 'next' && st.phase === 'hand_over') { startHand(st, rnd); return null; }
   if (a.t === 'restart' && st.phase === 'game_over') {
-    for (const p of st.players) { p.chips = START; p.out = false; }
+    for (const p of st.players) { p.chips = p.start; p.out = false; }
     st.hands = 0; st.dealer = -1; startHand(st, rnd); return null;
   }
   const idx = st.players.findIndex((p) => p.id === pid);

@@ -1,4 +1,5 @@
 // Онлайн: прямые WebRTC-соединения через PeerJS. Комнаты по короткому коду.
+import { botStacks } from './tables.js';
 import { HostSession, LocalHandle } from './session.js';
 import * as store from './store.js';
 
@@ -144,7 +145,8 @@ export class Room {
     const players = humans.map((p) => ({ id: p.id, name: p.name, bot: false, back: p.back }));
     const target = Math.min(mod.meta.max, Math.max(mod.meta.min, humans.length + bots));
     const names = ['Аврора', 'Макс', 'Ирис', 'Лео', 'Нова', 'Тео'];
-    for (let i = 0; players.length < target; i++) players.push({ id: 'bot' + i, name: names[i % names.length], bot: true, back: null });
+    const nb = target - players.length, stacks = this.opts.buyIn ? botStacks(this.game, this.opts.buyIn, nb) : [];
+    for (let i = 0; players.length < target; i++) players.push({ id: 'bot' + i, name: names[i % names.length], bot: true, back: null, chips: stacks[i] });
     this.host = new HostSession({ mod, players, opts: { ...this.opts, seed: Math.floor(Math.random() * 2 ** 31) }, online: true, myId: this.me });
     this.inGame = true;
     for (const [pid, c] of this.clients) {
