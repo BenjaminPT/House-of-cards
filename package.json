@@ -2,7 +2,7 @@
   "name": "house-of-cards",
   "productName": "House of Cards",
   "version": "1.0.0",
-  "description": "Минималистичный лаунчер карточных игр: покер, 21, пасьянс, сиквенс и рулетка. PWA + десктоп, онлайн с друзьями.",
+  "description": "Минималистичный лаунчер карточных игр: покер, 21, пасьянс, сиквенс, рулетка и «Последний патрон». PWA + десктоп, онлайн с друзьями.",
   "main": "electron/main.cjs",
   "homepage": "https://github.com/BenjaminPT/House-of-cards",
   "repository": {
@@ -15,7 +15,7 @@
   "scripts": {
     "start": "electron .",
     "serve": "node scripts/serve.mjs",
-    "test": "node tests/blackjack.test.mjs && node tests/poker.test.mjs && node tests/sequence.test.mjs && node tests/roulette-solitaire.test.mjs",
+    "test": "node tests/blackjack.test.mjs && node tests/poker.test.mjs && node tests/sequence.test.mjs && node tests/roulette-solitaire.test.mjs && node tests/shell.test.mjs",
     "vendor": "node scripts/vendor.mjs",
     "assets": "node scripts/gen-assets.mjs",
     "postinstall": "node scripts/vendor.mjs",

@@ -47,4 +47,10 @@ export const sfx = {
   lose() { tone(300, 0.3, { type: 'sawtooth', gain: 0.08, slide: -120 }); },
   tick() { tone(1400, 0.025, { type: 'square', gain: 0.05 }); },
   place() { tone(420, 0.08, { type: 'triangle', gain: 0.18, slide: -80 }); noise(0.04, { freq: 900, gain: 0.25 }); },
+  // «Последний патрон»
+  shot() { noise(0.55, { freq: 1400, q: 0.6, gain: 0.9, type: 'lowpass' }); tone(110, 0.4, { type: 'sine', gain: 0.5, slide: -60 }); },
+  dry() { tone(1500, 0.04, { type: 'square', gain: 0.1 }); noise(0.07, { freq: 3400, q: 0.8, gain: 0.25, type: 'highpass' }); },
+  rack() { tone(240, 0.07, { type: 'square', gain: 0.1, slide: -70 }); tone(330, 0.09, { type: 'square', gain: 0.1, delay: 0.13, slide: -110 }); },
+  heal() { tone(440, 0.16, { type: 'sine', gain: 0.16, slide: 200 }); tone(660, 0.2, { type: 'sine', gain: 0.14, delay: 0.1, slide: 220 }); },
+  hurt() { tone(170, 0.3, { type: 'sawtooth', gain: 0.1, slide: -90 }); },
 };
