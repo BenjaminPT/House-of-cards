@@ -16,6 +16,7 @@ import * as blackjack from './engines/blackjack.js';
 import * as solitaire from './engines/solitaire.js';
 import * as sequence from './engines/sequence.js';
 import * as roulette from './engines/roulette.js';
+import * as shell from './engines/shell.js';
 
 const REPO = 'https://github.com/BenjaminPT/House-of-cards';
 const BOT_NAMES = ['Аврора', 'Макс', 'Ирис', 'Лео', 'Нова', 'Тео'];
@@ -47,10 +48,16 @@ const GAMES = {
     art: svg('<circle cx="60" cy="40" r="30"/><circle cx="60" cy="40" r="19"/><circle cx="60" cy="40" r="4" fill="currentColor"/><path d="M60 10v9M60 61v9M30 40h9M81 40h9M39 19l6 6M75 55l6 6M81 19l-6 6M45 55l-6 6" opacity=".6"/><circle cx="84" cy="22" r="3" fill="currentColor"/>'),
     rules: ['Европейская рулетка с одним зеро: преимущество казино 2,7% на любую ставку. Лимит стола — 400 минимальных фишек за спин. Ставки на число, сплит, угол, стрит, дюжину, колонку, цвет, чёт/нечет.', 'Тапните по полю, чтобы поставить выбранную фишку. Ставки можно отменять и повторять.', 'Раунд начинается, когда все нажали «Крутить».'],
   },
+  shell: {
+    mod: shell, ui: () => import('./games/shell.js'), bots: [0, 0, 0], solo: true, local: true, modes: true,
+    art: svg('<path d="M10 46h70" stroke-width="5"/><path d="M80 40h14l8 6-8 6H80z"/><path d="M10 46l-4 12h18l4-12" opacity=".6"/><rect x="84" y="14" width="9" height="20" rx="2" fill="currentColor"/><rect x="98" y="14" width="9" height="20" rx="2" opacity=".5"/><circle cx="46" cy="22" r="3" fill="currentColor"/><path d="M40 28l12-12" opacity=".6"/>'),
+    rules: ['Один дробовик, патроны боевые и холостые, перед раундом объявляют их число. Порядок скрыт.', 'Стреляйте в крупье или в себя. Холостой в себя даёт ещё ход, боевой отнимает заряд. Раунды: 2, 4 и 5 зарядов.', 'Со 2-го раунда на каждую зарядку выдаются предметы: лупа, пиво, сигареты, ножовка, наручники. В расширенном режиме добавляются телефон, инвертор, адреналин и просрочка.'],
+  },
 };
 export const modOf = (id) => GAMES[id].mod;
 const MONEY = new Set(['poker', 'blackjack', 'roulette']);
-const ORDER = ['poker', 'blackjack', 'solitaire', 'sequence', 'roulette'];
+const ORDER = ['poker', 'blackjack', 'solitaire', 'sequence', 'roulette', 'shell'];
+const ONLINE = ORDER.filter((id) => !GAMES[id].local); // одиночные игры против крупье в онлайн-комнатах не участвуют
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
 /* ---------- оформления ---------- */
@@ -124,7 +131,7 @@ function renderHome() {
     h('section', { class: 'hero' },
       h('div', null,
         h('h1', null, 'House of ', h('em', null, 'Cards')),
-        h('p', null, 'Пять карточных игр за одним столом. Играйте с ботами или зовите друзей по коду комнаты — без регистрации.'),
+        h('p', null, 'Шесть игр за одним столом. Играйте с ботами или зовите друзей по коду комнаты — без регистрации.'),
         h('div', { class: 'hero-actions' }, btn('Играть онлайн', () => openOnline(), 'primary'), btn('Моя рубашка', () => openBacks(), ''))),
       fan),
     h('div', { class: 'grid', role: 'list' },
@@ -133,7 +140,7 @@ function renderHome() {
         return h('button', { class: 'tile', role: 'listitem', onclick: () => { sfx.unlock(); sfx.click(); openSetup(id); } },
           h('div', { class: 'art', html: g.art }),
           h('div', null, h('h3', null, m.name), h('p', null, m.desc),
-            h('div', { class: 'meta' }, h('span', { class: 'pill' }, m.min === m.max ? `${m.min} игрок` : `${m.min}–${m.max} игроков`), h('span', { class: 'pill' }, 'офлайн + онлайн'),
+            h('div', { class: 'meta' }, h('span', { class: 'pill' }, m.min === m.max ? `${m.min} игрок` : `${m.min}–${m.max} игроков`), h('span', { class: 'pill' }, g.local ? 'офлайн' : 'офлайн + онлайн'),
               (() => { const pts = stats.get(id).points; return h('span', { class: 'pts' + (pts ? '' : ' zero') }, 'Очки ', h('span', { class: 'num' }, pts.toLocaleString('ru-RU'))); })())));
       })),
     h('footer', { class: 'foot' }, 'Версия 1.0 · ', h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'исходный код на GitHub'), ' · фишки виртуальные, играем ради удовольствия'),
@@ -157,7 +164,7 @@ function confirmSheet(title, text, okLabel = 'Да', danger = false) {
 /* ---------- настройка партии ---------- */
 function openSetup(id) {
   const g = GAMES[id], m = g.mod.meta;
-  const cfg = { bots: g.bots[2], draw: 1, buyIn: 0 };
+  const cfg = { bots: g.bots[2], draw: 1, buyIn: 0, mode: 'classic' };
   const seg = (labels, get, set) => {
     const wrap = h('div', { class: 'seg', role: 'group' });
     const upd = () => [...wrap.children].forEach((b, i) => b.setAttribute('aria-pressed', String(labels[i][0] === get())));
@@ -170,12 +177,13 @@ function openSetup(id) {
     (() => { const st = stats.get(id); return h('div', { class: 'pts-line' }, 'Ваши очки в этом режиме', h('span', null, `${st.wins} из ${st.plays} побед`), h('b', null, st.points.toLocaleString('ru-RU'))); })(),
     g.solo ? null : h('div', { class: 'field' }, h('span', { class: 'lbl' }, g.botLabel), seg(range(g.bots[0], g.bots[1]).map((n) => [n, String(n)]), () => cfg.bots, (v) => { cfg.bots = v; })),
     g.draw ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Раздача из колоды'), seg([[1, 'По 1 карте'], [3, 'По 3 карты']], () => cfg.draw, (v) => { cfg.draw = v; })) : null,
+    g.modes ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Предметы'), seg([['classic', 'Обычные'], ['extended', 'Расширенные']], () => cfg.mode, (v) => { cfg.mode = v; })) : null,
     MONEY.has(id) ? h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Вход за стол'), (() => { const bp = buyInPicker(id, cfg, (v) => { if (go0) { go0.disabled = !v; if (go1) go1.disabled = !v; } }); return bp; })()) : null,
     id === 'sequence' ? h('p', { class: 'note' }, 'При 4 игроках играют две команды (1+3 и 2+4).') : null,
     h('details', { class: 'rules' }, h('summary', null, 'Правила'), h('ul', null, g.rules.map((r) => h('li', null, r)))),
     h('div', { class: 'row', style: { marginTop: '18px' } },
       go0 = btn(g.solo ? 'Играть' : 'Играть с ботами', () => { if (startLocal(id, cfg)) sh.close(); }, 'primary'),
-      go1 = btn('Онлайн-комната', () => { sh.close(); openOnline(id, cfg); }, '')));
+      g.local ? null : (go1 = btn('Онлайн-комната', () => { sh.close(); openOnline(id, cfg); }, ''))));
   const sh = sheet({ title: m.name, content: body });
   if (MONEY.has(id)) { go0.disabled = !cfg.buyIn; go1.disabled = !cfg.buyIn; }
 }
@@ -187,7 +195,7 @@ function startLocal(id, cfg) {
   const g = GAMES[id], s = store.get();
   const me = s.id;
   const money = MONEY.has(id);
-  const opts = { draw: cfg.draw, seed: cfg.seed };
+  const opts = { draw: cfg.draw, seed: cfg.seed, mode: cfg.mode };
   const wal = money ? { paid: 0, start: cfg.buyIn } : null;
   if (money) {
     if (!cfg.buyIn || !wallet.buyIn(cfg.buyIn, `Вход · ${g.mod.meta.name}`)) { openCashier(cfg.buyIn || BUYIN[id].min); return false; }
@@ -373,6 +381,7 @@ const STAT_ROWS = {
   roulette: (g) => [['Спинов', g.plays], ['С выигрышем', g.wins], ['Лучший выигрыш', g.x.bestWin || 0], ['Баланс', (g.net > 0 ? '+' : '') + g.net]],
   solitaire: (g) => [['Партий', g.plays], ['Собрано', g.wins], ['Лучшее время', g.x.bestTime ? stats.mmss(g.x.bestTime) : '—'], ['Лучший счёт', g.x.bestScore || 0], ['Серия побед', g.bestStreak]],
   sequence: (g) => [['Партий', g.plays], ['Побед', g.wins], ['Секвенсов', g.x.sequences || 0], ['Серия побед', g.bestStreak]],
+  shell: (g) => [['Партий', g.plays], ['Побед', g.wins], ['Раундов выиграно', g.x.rounds || 0], ['Серия побед', g.bestStreak]],
 };
 function openStats() {
   const t = stats.totals();
@@ -600,7 +609,7 @@ function renderHostLobby() {
   const g = GAMES[room.game], m = g.mod.meta;
   const humans = room.roster();
   const link = `${location.origin}${location.pathname}#/join/${room.code}`;
-  const gameSeg = h('div', { class: 'seg', role: 'group', style: { flexWrap: 'wrap' } }, ORDER.map((id) => h('button', { type: 'button', 'aria-pressed': String(room.game === id), onclick: () => { net.bots = 0; room.setGame(id, tableOpts(id)); } }, GAMES[id].mod.meta.name)));
+  const gameSeg = h('div', { class: 'seg', role: 'group', style: { flexWrap: 'wrap' } }, ONLINE.map((id) => h('button', { type: 'button', 'aria-pressed': String(room.game === id), onclick: () => { net.bots = 0; room.setGame(id, tableOpts(id)); } }, GAMES[id].mod.meta.name)));
   const maxBots = Math.max(0, m.max - humans.length);
   net.bots = Math.min(net.bots, maxBots);
   const botSeg = h('div', { class: 'seg', role: 'group' }, range(0, Math.min(maxBots, 5)).map((n) => h('button', { type: 'button', 'aria-pressed': String(net.bots === n), onclick: () => { net.bots = n; renderHostLobby(); } }, String(n))));

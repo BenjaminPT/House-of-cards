@@ -1,5 +1,5 @@
 // Service worker: сеть в приоритете, кеш — офлайн-запас. Сеть для WebRTC не затрагивается.
-const VERSION = 'hoc-v1.0.1';
+const VERSION = 'hoc-v1.1.0';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
